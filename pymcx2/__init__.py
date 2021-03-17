@@ -1,4 +1,5 @@
-"""Module for reading binary TDMS files produced by LabView"""
+""" An interface module for mcx (Monte Carlo eXtreme).
+"""
 
 from __future__ import absolute_import
 
@@ -7,5 +8,7 @@ from __future__ import absolute_import
 from .version import __version_info__, __version__
 
 # Export public objects
-from .MCHStore import MCHStore
-from .MCHFileChunk import MCHFileChunk
+from .mchchunk import MCHFileChunk
+from .mchstore import MCHStore, loadmch
+from .mc2store import MC2Store, loadmc2
+

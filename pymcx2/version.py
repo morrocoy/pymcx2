@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""
+""" An interface module for mcx (Monte Carlo eXtreme).
+
 Created on Tue Mar 16 21:39:10 2021
 
 @author: kpapke

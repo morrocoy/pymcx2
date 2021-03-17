@@ -1,23 +1,42 @@
 # -*- coding: utf-8 -*-
-"""
+""" An interface module for mcx (Monte Carlo eXtreme).
+
 Created on Tue Mar 16 7:12:51 2021
 
 @author: kpapke
 """
 import numpy as np
 
-from .log import log_manager
+from .log import logmanager
 
 __all__ = ['MCHFileChunk']
 
-logger = log_manager.get_logger(__name__)
+logger = logmanager.getLogger(__name__)
 
 
 class MCHFileChunk(object):
     """ Represents a chunk of data in an mch file
+
+
+    Attributes
+    ----------
+    position : uint64
+        The chunk start position in file.
+    next_position : uint64
+        The next chunk start position in file.
+    next_offset : uint64
+        The position of the next chunk relative to this one.
+    meta_offset : uint64
+        The position of the metadata start within chunk.
+    data_offset : uint64
+        The position of the data start within chunk.
+    seed_offset : uint64
+        The position of the seeds start within chunk.
+    dtype: data-type
+        The type of the statistical data stored in the file.
     """
 
-    def __init__(self, file, offset=0, endianness="<"):
+    def __init__(self, file, offset=0, dtype='<f'):
         """
 
         Parameters
@@ -26,10 +45,9 @@ class MCHFileChunk(object):
             An already opened mch file.
         offset : uint64, optional
             Offset to the current position in file. Default is 0.
-        endianness: str, optional
-            The byte order. Little-endian corresponds to '<'. Big-endian
-            corresponds to '>'. Default is little-endian.
-
+        dtype: data-type, optional
+            The type of the statistical data stored in the file. Default is
+            float with little endianness.
         """
         self.file = None  # input file
         self.position = None  # chunk start position in file
@@ -38,6 +56,7 @@ class MCHFileChunk(object):
         self.meta_offset = None  # position of meta data start within chunk
         self.data_offset = None  # position of data start within chunk
         self.seed_offset = None  # position of seeds start within chunk
+
 
         # validate input file
         if hasattr(file, "read"):
@@ -56,14 +75,12 @@ class MCHFileChunk(object):
         else:
             raise RuntimeError("Cannot read data from the underlying mch file.")
 
-        # set byte order
-        if endianness in ("<", "little", "ieee-le"):
-            self.endianness = "<"
-        elif endianness in (">", "big", "ieee-be"):
-            self.endianness = ">"
-        else:
-            raise ValueError("Unknown byte order {}".format(endianness))
+        # data arrays
+        self.dtype = np.dtype(dtype)  # type of statistical data
+        self.data = None  # statistical data
+        self.seed = None  # seeds
 
+        # attributes of metadata
         self.version = None  # version of the mch file
 
         self.ncol = None  # number of columns in the raw data array
@@ -82,10 +99,6 @@ class MCHFileChunk(object):
         self.normalizer = None
         self.respin = None
         self.junk = None
-
-        # data arrays
-        self.data = None
-        self.seed = None
 
         # load metadata
         if self.file is not None:
@@ -120,9 +133,10 @@ class MCHFileChunk(object):
         ]
         values = [int(val) for val in list(np.binary_repr(flags % 256, 8))]
 
-        if self.endianness in ("<", "little", "ieee-le"):
+        # little or native byte ordering (">", "!")
+        if self.dtype.byteorder in ("<", "="):
             return dict(zip(keys, values[::-1]))
-        else:  # big-endian ordering (">", "big", "ieee-be")
+        else:  # big byte ordering (">", "!")
             return dict(zip(keys, values))
 
 
@@ -241,8 +255,7 @@ class MCHFileChunk(object):
         # read data
         logger.debug("Reading chunk data at {}".format(self.file.tell()))
         shape = (self.savedphoton, self.ncol)
-        dtype = self.endianness + "f"
-        buffer = np.fromfile(self.file, dtype=dtype, count=np.prod(shape))
+        buffer = np.fromfile(self.file, dtype=self.dtype, count=np.prod(shape))
         data = buffer.reshape(shape)
 
         return data
@@ -270,7 +283,7 @@ class MCHFileChunk(object):
 
 
     @staticmethod
-    def read(file, offset=0, endianness='<'):
+    def read(file, offset=0, dtype='<f'):
         """Creates a new MCHFileChunk object and reads all data from the
         currently selected chunk in the mch file
 
@@ -281,11 +294,11 @@ class MCHFileChunk(object):
             pathlib.Path, or an already opened file.
         offset : uint64, optional
             Offset to the current position in file. Default is 0.
-        endianness: str, optional
-            The byte order. Little-endian corresponds to '<'. Big-endian
-            corresponds to '>'. Default is little-endian.
+        dtype: data-type, optional
+            The type of the statistical data stored in the file. Default is
+            float with little endianness.
         """
-        chunk = MCHFileChunk(file, offset, endianness)
+        chunk = MCHFileChunk(file, offset, dtype)
         if not chunk.empty():
             chunk.loadData()
             chunk.loadSeed()
@@ -294,7 +307,7 @@ class MCHFileChunk(object):
 
 
     @staticmethod
-    def readMetadata(file, offset=0, endianness='<'):
+    def readMetadata(file, offset=0, dtype='<f'):
         """Creates a new MCHFileChunk object and reads all meta data from the
         currently selected chunk in the mch file
 
@@ -305,11 +318,11 @@ class MCHFileChunk(object):
             pathlib.Path, or an already opened file.
         offset : uint64, optional
             Offset to the current position in file. Default is 0.
-        endianness: str, optional
-            The byte order. Little-endian corresponds to '<'. Big-endian
-            corresponds to '>'. Default is little-endian.
+        dtype: data-type, optional
+            The type of the statistical data stored in the file. Default is
+            float with little endianness.
         """
-        chunk = MCHFileChunk(file, offset, endianness)
+        chunk = MCHFileChunk(file, offset, dtype)
         if not chunk.empty():
             file.seek(chunk.next_position)
         return chunk
