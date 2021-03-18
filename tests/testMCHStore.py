@@ -12,7 +12,7 @@ import numpy as np
 import json
 import logging
 
-# from utils import loadmch, loadmc2
+import utils
 from pymcx2 import loadmch, loadmc2
 from pymcx2 import MCHStore, MC2Store
 from pymcx2.log import logmanager
@@ -66,11 +66,25 @@ def main():
     print("Saved photons: {}".format(mchstore.savedphoton))
 
     print("Flags: {}".format(mchstore.flags))
+    print("Columns: {}".format(mchstore.cols))
+    print("Keys: {}".format(mchstore.keys))
+    print("Index: {}".format(mchstore.index))
 
     print("Length unit: {}".format(mchstore.lengthunit))
     print("Seed bytes: {}".format(mchstore.seedbyte))
     print("Normalizer: {}".format(mchstore.normalizer))
     print("Respin: {}".format(mchstore.respin))
+
+
+    print(mchstore["detectid"])
+    print(mchstore["ppathlen"])
+    # print(mchstore['nscatter'])
+
+    df = mchstore.asDataFrame()
+    print(df)
+
+    data2 = utils.loadmch(filePath)
+    print(data2[0].shape)
 
     # load results of mc2 file ................................................
     filePath = os.path.join(data_path, session + ".mc2")

@@ -80,6 +80,32 @@ class MCHFileChunk(object):
         self.data = None  # statistical data
         self.seed = None  # seeds
 
+        # keys available columns of the data arrays
+        self.keys = [
+            "detectid",
+            "nscatter",
+            "ppathlen",
+            "momentum",
+            "pos_exit",
+            "dir_exit",
+            "weight",
+        ]
+        # flags indicating the availability of data for each key
+        self.flags = None  # to fill up bytes
+        # template for column names for each key
+        self._cols = {
+            "detectid": ["detectid"],
+            "nscatter": ["nscatter_mat"],
+            "ppathlen": ["ppathlen_mat"],
+            "momentum": ["momentum_mat"],
+            "pos_exit": ["pos_exit_x", "pos_exit_y", "pos_exit_z"],
+            "dir_exit": ["dir_exit_x", "dir_exit_y", "dir_exit_z"],
+            "weight": ["weight"],
+        }
+        # available column names for each key
+        self.cols = {key: [] for key in self.keys}
+        self.index = {key: None for key in self.keys}
+
         # attributes of metadata
         self.version = None  # version of the mch file
 
@@ -91,8 +117,6 @@ class MCHFileChunk(object):
         self.totalphoton = None  # total number of launched photons
         self.detectedphoton = None  # number of detected photons
         self.savedphoton = None  # number of saved photons
-
-        self.flags = None  # to fill up bytes
 
         self.lengthunit = None  # length unit to scale partial paths
         self.seedbyte = None  #
@@ -121,23 +145,14 @@ class MCHFileChunk(object):
         === ========= ========= ================================
 
         """
-        keys = [
-            "detectid",
-            "nscatter",
-            "ppathlen",
-            "momentum",
-            "pos_exit",
-            "dir_exit",
-            "weight",
-            "bit_8",
-        ]
         values = [int(val) for val in list(np.binary_repr(flags % 256, 8))]
 
         # little or native byte ordering (">", "!")
         if self.dtype.byteorder in ("<", "="):
-            return dict(zip(keys, values[::-1]))
+            return dict(zip(self.keys, values[::-1]))
         else:  # big byte ordering (">", "!")
-            return dict(zip(keys, values))
+            return dict(zip(self.keys, values))
+
 
 
     def clear(self):
@@ -158,6 +173,9 @@ class MCHFileChunk(object):
         self.savedphoton = None  # number of saved photons
 
         self.flags = None  # to fill up bytes
+        for key in self.keys:  # column names and indices for each key
+            self.cols[key].clear()
+            self.index[key] = None
 
         self.lengthunit = None  # length unit to scale partial paths
         self.seedbyte = None  #
@@ -219,9 +237,30 @@ class MCHFileChunk(object):
         # update chunk offsets and positions in underlying mch file
         self.data_offset = 64
         self.seed_offset = self.data_offset + 4 * savedphoton * ncol
-        self.next_offset =  self.seed_offset + savedphoton * seedbyte
+        self.next_offset = self.seed_offset + savedphoton * seedbyte
         self.next_position = self.position + self.next_offset
 
+        # flags indicating the availability of data for each key
+        self.flags = self._unravelFlags(flags)
+
+        # available column names and corresponding index for each key
+        index = 0
+        for key in self.keys:
+            if self.flags[key]:
+                if "mat" in self._cols[key][0]:
+                    self.cols[key] = [
+                        "%s%d" % (self._cols[key][0], i) for i in range(nmat)]
+                else:
+                    self.cols[key] = self._cols[key]
+
+                self.index[key] = index
+                index += len(self.cols[key])
+
+            else:
+                self.cols[key].clear()
+                self.index[key] = None
+
+        # meta data attributes
         self.version = version
 
         self.ncol = ncol
@@ -232,8 +271,6 @@ class MCHFileChunk(object):
         self.totalphoton = totalphoton * respin if respin > 1 else totalphoton
         self.detectedphoton = detectedphoton
         self.savedphoton = savedphoton
-
-        self.flags = self._unravelFlags(flags)
 
         self.lengthunit = unitmm
         self.seedbyte = seedbyte

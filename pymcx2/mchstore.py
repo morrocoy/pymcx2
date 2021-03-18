@@ -6,7 +6,10 @@ Created on Tue Mar 16 11:35:26 2021
 @author: kpapke
 """
 import os.path
+
+
 import numpy as np
+import pandas as pd
 
 from .log import logmanager
 from .mchchunk import MCHFileChunk
@@ -72,9 +75,6 @@ class MCHStore(object):
         self.data = None  # statistical data
         self.seed = None  # seeds
 
-        # keys to index data column wise
-        self.keys = []
-
         # mch file already open
         if hasattr(fname, "read") and hasattr(fname, "mode"):
             file = fname
@@ -113,8 +113,14 @@ class MCHStore(object):
 
     def __getitem__(self, key):
         """ Retrieve a TDMS group from the file by name. """
-        if key in self.keys:
-            pass
+        if key in self.keys and self.index[key] is not None:
+            index = self.index[key]  # index of first column
+            ncol = len(self.cols[key])  # number of columns
+            if ncol > 1:
+                return self.data[:, index:index+ncol]
+            elif ncol == 1:
+                return self.data[:, index]
+
         else:
             raise KeyError("There is no key named '%s' in the mch file" % key)
 
@@ -130,9 +136,20 @@ class MCHStore(object):
                 "Cannot read data after the underlying mch file is closed")
 
 
-    def asdataframe(self):
+    def asarray(self):
+        return self.data
+
+
+    def asDataFrame(self):
         """ Creates a dataframe from the data of the mch file. """
-        return 0
+        columns = []
+        for key in self.keys:
+            columns.extend(self.cols[key])
+
+        return pd.DataFrame(self.data, columns=columns)
+
+    def clear(self):
+        self.chunks.clear()
 
 
     def close(self):
@@ -172,6 +189,23 @@ class MCHStore(object):
         else:
             self.seed = None
 
+    @property
+    def keys(self):
+        """ list: List of keys to access statistical data of the array."""
+        if len(self.chunks):
+            return [key for key, flag in self.flags.items() if flag]
+        else:
+            return None
+
+    @property
+    def cols(self):
+        """ dict: Column names for each key."""
+        return self.chunks[0].cols if len(self.chunks) else None
+
+    @property
+    def index(self):
+        """ dict: Data array column indices for each key."""
+        return self.chunks[0].index if len(self.chunks) else None
 
     @property
     def detectedphoton(self):
