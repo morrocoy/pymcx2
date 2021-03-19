@@ -217,7 +217,8 @@ def readDataChunk(file, format='f', endian='ieee-le'):
     if metadata['seedbyte']:
         buffer = np.fromfile(file, dtype='B', count=np.prod(shape))
         seeds = buffer.reshape(shape, order='F')
-        seeds = seeds.transpose((0, 2, 1))
+        # seeds = seeds.transpose((0, 2, 1))
+        seeds = seeds.transpose()
     else:
         seeds = None
 

@@ -312,7 +312,8 @@ class MCHFileChunk(object):
             shape = (self.seedbyte, self.savedphoton)
             buffer = np.fromfile(self.file, dtype='B', count=np.prod(shape))
             seed = buffer.reshape(shape, order='F')
-            seed = seed.transpose((0, 2, 1))
+            # seed = seed.transpose((0, 2, 1))
+            seed = seed.transpose()
         else:
             seed = None
 

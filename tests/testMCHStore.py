@@ -21,7 +21,8 @@ logger = logmanager.getLogger(__name__)
 
 
 def main():
-    data_path = os.path.join(os.getcwd(), "..", "data")
+    # data_path = os.path.join(os.getcwd(), "..", "data")
+    data_path = os.path.join(os.getcwd(), "..", "model")
     pict_path = os.path.join(os.getcwd(), "..", "pictures")
 
     # load configuration ......................................................

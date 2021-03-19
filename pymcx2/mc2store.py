@@ -151,7 +151,7 @@ class MC2Store(object):
         self.data = self.readData(shape)
 
 
-    def readData(self, shape):
+    def readData(self, shape, order='F'):
         """ Load the data of all chunks in the mc2 file.
 
         Parameters
@@ -174,7 +174,7 @@ class MC2Store(object):
         logger.debug("Reading data at {}".format(self.file.tell()))
         buffer = np.fromfile(self.file, dtype=self.dtype, count=np.prod(shape))
         if len(buffer) == np.prod(shape):
-            return buffer.reshape(shape)
+            return buffer.reshape(shape, order=order)
         else:
             logger.debug("Cannot align data to the provided shape")
             return None
