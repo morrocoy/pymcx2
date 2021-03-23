@@ -8,8 +8,11 @@ Created on Wed Feb 24 18:32:15 2021
 import sys
 import os.path
 
-import numpy as np
 import json
+import numpy as np
+import matplotlib.pyplot as plt
+
+
 import logging
 
 import utils
@@ -100,6 +103,46 @@ def main():
 
     data = mc2store[0]
 
+    # dslice = np.log10(data[200:300, 200:300, 1])
+    dslice = np.log10(data[..., 1])
+    # dslice = np.log10(data[400, ...])
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    pos = plt.imshow(dslice, vmin=-10, vmax=-2, cmap='jet')
+    fig.colorbar(pos, ax=ax)
+    plt.show()
+    plt.close()
+
+    fig = plt.figure()
+    # fig.set_size_inches(10, 8)
+    ax = fig.add_subplot(1,1,1)
+    pos = ax.contourf(dslice, levels=np.arange(-10, -1, 1), cmap='jet')
+    fig.colorbar(pos, ax=ax)
+    plt.show()
+    plt.close()
+
+    n1 = 1.0  # refractive index of surrounding
+    n2 = 1.5  # refractive index of medium
+    n2 = 1.37  # refractive index of medium
+    specrefl = ((n1-n2)/(n1+n2))**2  # specular reflectance
+    diffrefl = np.abs(np.sum(data[:, :, 0])) * (1-specrefl)   # diffuse reflectance
+    absorbed = np.sum(data[:, :, 1:])  * (1-specrefl)  # absorbed fraction
+    transmitted = 1 - diffrefl - absorbed - specrefl # total transmittance
+
+
+    # energytot = 4800  # from command line output
+    # nphoton = 5000  # from command line output
+    # specrefl = (nphoton - energytot) / nphoton  # specular reflectance
+    # diffrefl = np.abs(np.sum(data[:, :, 0])) * energytot / nphoton  # diffuse reflectance
+    # absorbed = np.sum(data[:, :, 1:]) * energytot / nphoton # absorbed fraction
+    # transmitted = 1 - diffrefl - absorbed - specrefl # total transmittance
+
+
+    print("Absorbed fraction: %f" % absorbed)
+    print("Diffuse reflectance: %f" % diffrefl)
+    print("Specular reflectance: %f" % specrefl)
+    print("Total transmittance: %f" % transmitted)
 
 
 
