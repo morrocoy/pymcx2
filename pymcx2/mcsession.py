@@ -202,6 +202,7 @@ class MCSession(object):
                 'T0': self.forward['t0'],
                 'T1': self.forward['t1'],
                 'Dt': self.forward['dt'],
+                'N0': self.boundary['n0'],
             },
             'Optode': {
                 'Source': {
@@ -330,6 +331,10 @@ class MCSession(object):
             else:
                 cmdItems.append("-" + key)
             cmdItems.append(str(val))
+
+        # boundary conditions
+        cmdItems.append("--bc")
+        cmdItems.append(self.boundary['bc'])
 
         # input file
         cmdItems.append("-f")
