@@ -3,7 +3,7 @@
 
 Created on Tue Mar 23 15:37:11 2021
 
-@author: kai
+@author: kpapke
 """
 import sys
 import os.path
@@ -19,8 +19,6 @@ import logging
 mcx = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "mcx"))
 sys.path.append(os.path.abspath(mcx))
 
-import utils
-from pymcx2 import findMCX
 from pymcx2 import MCSession
 from pymcx2.log import logmanager
 
@@ -31,27 +29,59 @@ def main():
     data_path = os.path.join(os.getcwd(), "..", "model")
     pict_path = os.path.join(os.getcwd(), "..", "pictures")
 
-    # load configuration ......................................................
-
-    session = MCSession('benchmark_1x', workdir=data_path)
-
+    # define geometry .........................................................
     vol = np.ones((200, 200, 11))
     vol[..., 0] = 0
+
+    # configure and run simulation ............................................
+    session = MCSession('benchmark_1x', workdir=data_path, seed=29012392)
 
     session.setDomain(vol, originType=1, lengthUnit=0.02)
     session.addMaterial(mua=1, mus=9, g=0.75, n=1)
     session.addMaterial(mua=0, mus=0, g=1, n=1)
 
     session.setBoundary(specular=True, missmatch=True, n0=1)
-    session.setSource(
-        nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1], seed=29012392)
+    session.setSource(nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1])
+    session.setSourceType(type='pencil')
     session.addDetector(pos=[50, 50, 0], radius=50)
 
     session.setOutput(type="E", normalize=True, mask="DSPMXVW")
     session.dumpJSON()
     session.dumpVolume()
 
-    session.run()
+    session.run(thread='auto', debug='P')
+
+    # post processing .........................................................
+    data = session.fluence[..., 0]  # last index refers to time step
+
+    n0 = 1.0  # refractive index of surrounding
+    n1 = 1.0  # refractive index of medium where photons enter
+    specrefl = ((n0 - n1) / (n0 + n1)) ** 2  # specular reflectance
+    diffrefl = np.abs(np.sum(data[..., 0])) * (1 - specrefl)  # diffuse reflect
+    absorbed = np.sum(data[:, :, 1:]) * (1 - specrefl)  # absorbed fraction
+    transmitted = 1 - diffrefl - absorbed - specrefl  # total transmittance
+
+    print("\nAbsorbed fraction: %f" % absorbed)
+    print("Diffuse reflectance: %f" % diffrefl)
+    print("Specular reflectance: %f" % specrefl)
+    print("Total transmittance: %f" % transmitted)
+
+    print("\nDetected photons:")
+    print(session.detectedPhotons)
+
+    # plot slice of fluence data ..............................................
+    dataSlice = data[:, :, 0]
+    dataSlice = np.log10(np.abs(dataSlice))
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    pos = plt.imshow(dataSlice, vmin=-10, vmax=-2, cmap='jet')
+    # pos = ax.contourf(dataSlice, levels=np.arange(-10, -1, 1), cmap='jet')
+    fig.colorbar(pos, ax=ax)
+    plt.show()
+    plt.close()
+
+
 
 
 
@@ -60,25 +90,3 @@ if __name__ == '__main__':
     logger.info("Python executable: {}".format(sys.executable))
 
     main()
-
-
-# fileName = "benchmark_3.json"
-
-# filePath = os.path.join(dirPaths['model'], fileName)
-# with open(filePath) as file:
-#     cfg = json.load(file)
-#
-#     sid = cfg['Session']['ID']
-#     print("Session: {}".format(cfg['Session']['ID']))
-#
-# # mcx.run(cfg, flag="", mcxbin=mcxbin)
-#
-#
-# # ..\..\bin\mcx.exe -A -f benchmark3.json -b 1 -s benchmark_3 %*
-#
-# # cmd = mcxbin+' -A -f ' + filePath + " -b 0 %*"
-# cmd = mcxbin + " -A -f " + filePath + " -b 1 -s " + sid + " %*"  # specify session id
-# # cmd = mcxbin+' -f benchmark1.json'
-#
-# print(cmd)
-# # os.system(cmd)

@@ -13,6 +13,8 @@ import json
 
 from .log import logmanager
 from .findmcx import findMCX
+from .mc2store import loadmc2
+from .mchstore import loadmch
 
 __all__ = ['MCSession']
 
@@ -24,9 +26,23 @@ class MCSession(object):
 
     """
 
-    def __init__(self, name, workdir):
-        self.name = name
-        self.workdir = workdir
+    def __init__(self, name, workdir, seed=-1):
+        """ Constructor.
+
+        Parameters
+        ----------
+        name : str
+            The session name or id used as default name for the output files.
+        workdir : str or pathlib.Path,
+            The path to the working directory.
+        seed : int
+            The seed of the CPU random number generator (RNG). A value of -1
+            let MCX to automatically seed the CPU-RNG using system clock. A
+            value n > 0 sets the CPU-RNG's seed to n.
+        """
+        self.name = name  # seesion id name
+        self.workdir = workdir  # working directory
+        self.seed = seed  # seed of the CPU random number generator (automatic)
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -52,12 +68,13 @@ class MCSession(object):
 
         # time domain setting
         self.forward = {
-            't0' : 0.0,
-            't1': 5.0e-9,
-            'dt': 5.0e-9,
+            't0' : 0.0,  # start time
+            't1': 5.0e-9,  # end time
+            'dt': 5.0e-9,  # time step
+            'ntime': 1,  # number of time steps
         }
 
-        # material settings
+        # material settings (initialize with background material of tag 0)
         self.material = {
             'mat0': {'tag': 0, 'mua': 0., 'mus': 0., 'g': 1., 'n': 1.}
         }
@@ -76,12 +93,16 @@ class MCSession(object):
             'nphoton': 1e3,  # total number of photons to be simulated
             'pos': [0, 0, 0],  # grid position of a source in grid unit
             'dir': [0, 0, 1],  # directional vector of the photon at launch
-            'seed': -1,  # seed of the CPU random number generator (automatic)
             'type': 'pencil',  # source type (pencil, isotropic, cone, ...)
             'param1': None,  # source type parameters
             'param2': None,  # additional Source type parameters
             'pattern': None  # additional Source type parameters
         }
+
+        # result stores
+        self.fluence = None  # four-dimensional numpy array (nx, ny, nz, ntime)
+        self.detectedPhotons = None  # pandas dataframe
+
 
 
     def addDetector(self, pos, radius):
@@ -161,7 +182,7 @@ class MCSession(object):
                 'ID': self.name,
                 'RootPath': os.path.abspath(self.workdir),
                 'Photons': int(self.source['nphoton']),
-                'RNGSeed': self.source['seed'],
+                'RNGSeed': self.seed,
                 'DoMismatch': self.boundary['missmatch'],
                 'DoSaveVolume': True,
                 'DoNormalize': self.output['normalize'],
@@ -256,7 +277,7 @@ class MCSession(object):
         pass
 
 
-    def run(self, thread="auto", debug=4, **flags):
+    def run(self, thread="auto", **flags):
         """ Execute the simulation with optional flags.
 
         Parameters
@@ -275,24 +296,34 @@ class MCSession(object):
             Additional flags with the prepended '-' or '--' being skipped.
             See mcx help for more information.
         """
-
-        # mcx = os.path.join(
-        #     os.path.dirname(__file__), "..", "..", "mcx", "bin", "mcx.exe")
-
-        mcx = findMCX()
-        if mcx is None:
-            mcx = "mcx.exe"
+        filePath = {
+            'config': os.path.join(self.workdir, self.name + ".json"),
+            'volume': os.path.join(self.workdir, self.name + ".mcv"),
+            'fluenc': os.path.join(self.workdir, self.name + ".mc2"),
+            'detect': os.path.join(self.workdir, self.name + ".mch"),
+        }
+        # remove any existing files
+        for fp in filePath.values():
+            if os.path.isfile(fp):
+                os.remove(fp)
 
         self.dumpJSON()
         self.dumpVolume()
 
-        if not 'A' in flags.keys() and not 'autopilot' in flags.keys() :
-            flags['A'] = 1 if thread == "auto" else 0
+        cmdItems = []  # list of executable and options to construct command
 
         # binary
-        cmdItems = [mcx]
+        mcx = findMCX()
+        if mcx is None:
+            mcx = "mcx.exe"
+        cmdItems.append(mcx)
 
-        # additional flags
+        # additional options and flags
+        if not 'A' in flags.keys() and not 'autopilot' in flags.keys() :
+            flags['A'] = 1 if thread == "auto" else 0
+        if isinstance(thread, int):
+            flags['thread'] = thread
+
         for key, val in flags.items():
             if len(key) > 1:
                 cmdItems.append("--" + key)
@@ -302,11 +333,31 @@ class MCSession(object):
 
         # input file
         cmdItems.append("-f")
-        cmdItems.append(self.name + ".json")
+        cmdItems.append(filePath['config'])
 
+        # run simulation
         print(cmdItems)
         subprocess.run(cmdItems, cwd=os.path.abspath(self.workdir))
 
+        # retrieve results for fluence field
+        if os.path.isfile(filePath['fluenc']):
+            shape = self.domain['vol'].shape + (self.forward['ntime'], )
+            logger.debug("Reading file {} with shape {}.".format(
+                filePath['fluenc'], shape))
+            store = loadmc2(filePath['fluenc'], shape)
+            self.fluence = store.asarray()  # four-dimensional array
+        else:
+            logger.debug("File {} not found.".format(filePath['fluenc']))
+            self.fluence = None
+
+        # retrieve results for detected photons
+        if os.path.isfile(filePath['detect']):
+            logger.debug("Reading file {}.".format(filePath['detect']))
+            store = loadmch(filePath['detect'])
+            self.detectedPhotons = store.asDataFrame()  # pandas dataframe
+        else:
+            logger.debug("File {} not found.".format(filePath['detect']))
+            self.detectedPhotons = None
 
 
     def setBoundary(self, specular=True, missmatch=True,
@@ -403,6 +454,7 @@ class MCSession(object):
         self.forward['t0'] = t0
         self.forward['t1'] = t1
         self.forward['dt'] = dt
+        self.forward['ntime'] = int((t1 - t0) // dt)
 
 
     def setMaterial(self, tag, mua, mus, g, n):
@@ -428,6 +480,20 @@ class MCSession(object):
             self.material[name]['mus'] = mus
             self.material[name]['g'] = g
             self.material[name]['n'] = n
+
+
+    def setMissmatch(self, enable=1):
+        """ Configures the reflections at the boundaries.
+
+        Parameters
+        ----------
+        enable : bool
+            Enable or disable reflections at the boundaries. By default, mcx
+            considers refractive index mismatch at the boundaries and photons
+            will be either reflected or transmitted at the boundaries based on
+            the Fresnel's equation.
+        """
+        self.boundary['missmatch'] = enable
 
 
     def setOutput(self, type="X", normalize=True, mask="DSPMXVW", format="mc2"):
@@ -480,7 +546,20 @@ class MCSession(object):
         self.output['format'] = format
 
 
-    def setSource(self, nphoton, pos, dir, seed=-1):
+    def setSeed(self, seed):
+        """ Set the seed of the CPU random number generator.
+
+        Parameters
+        ----------
+        seed : int
+            The seed of the CPU random number generator (RNG). A value of -1
+            let MCX to automatically seed the CPU-RNG using system clock. A
+            value n > 0 sets the CPU-RNG's seed to n.
+        """
+        self.seed = seed
+
+
+    def setSource(self, nphoton, pos, dir):
         """ Set the photon source.
 
         Parameters
@@ -491,15 +570,10 @@ class MCSession(object):
             The grid position of a source, can be non-integers, in grid unit.
         dir : list, ndarray
             The unitary directional vector of the photon at launch.
-        seed : int
-            The seed of the CPU random number generator (RNG). A value of -1
-            let MCX to automatically seed the CPU-RNG using system clock. A
-            value n > 0 sets the CPU-RNG's seed to n.
         """
         self.source['nphoton'] = nphoton
         self.source['pos'] = pos
         self.source['dir'] = dir
-        self.source['seed'] = seed
 
 
     def setSourceType(self, type, param1=None, param2=None, pattern=None):
@@ -534,17 +608,4 @@ class MCSession(object):
         """
         self.boundary['specular'] = enable
 
-
-    def setMissmatch(self, enable=1):
-        """ Configures the reflections at the boundaries.
-
-        Parameters
-        ----------
-        enable : bool
-            Enable or disable reflections at the boundaries. By default, mcx
-            considers refractive index mismatch at the boundaries and photons
-            will be either reflected or transmitted at the boundaries based on
-            the Fresnel's equation.
-        """
-        self.boundary['missmatch'] = enable
 

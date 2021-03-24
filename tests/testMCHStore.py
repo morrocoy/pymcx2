@@ -3,7 +3,7 @@
 
 Created on Wed Feb 24 18:32:15 2021
 
-@author: kai
+@author: kpapke
 """
 import sys
 import os.path
