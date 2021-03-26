@@ -45,7 +45,7 @@ session.setOutput(type="E", normalize=True, mask="DSPMXVW")
 session.dumpJSON()
 session.dumpVolume()
 
-session.run(thread='auto', debug='P')
+session.run(thread='auto', debug='P', blocksize=64)
 
 # post processing .........................................................
 data = session.fluence[..., 0]  # last index refers to time step

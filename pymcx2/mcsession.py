@@ -319,12 +319,17 @@ class MCSession(object):
             mcx = "mcx.exe"
         cmdItems.append(mcx)
 
-        # additional options and flags
-        if not 'A' in flags.keys() and not 'autopilot' in flags.keys() :
+        # number of threads
+        if not 'A' in flags.keys() and not 'autopilot' in flags.keys():
             flags['A'] = 1 if thread == "auto" else 0
         if isinstance(thread, int):
             flags['thread'] = thread
 
+        # boundary conditions
+        if not 'B' in flags.keys() and not 'bc' in flags.keys():
+            flags['bc'] = self.boundary['bc']
+
+        # add options and flags to command
         for key, val in flags.items():
             if len(key) > 1:
                 cmdItems.append("--" + key)
@@ -332,17 +337,18 @@ class MCSession(object):
                 cmdItems.append("-" + key)
             cmdItems.append(str(val))
 
-        # boundary conditions
-        cmdItems.append("--bc")
-        cmdItems.append(self.boundary['bc'])
 
         # input file
         cmdItems.append("-f")
         cmdItems.append(filePath['config'])
 
         # run simulation
-        print(cmdItems)
-        subprocess.run(cmdItems, cwd=os.path.abspath(self.workdir))
+        if 'debug' in flags and flags['debug'] != 0:
+            print(f'{cmdItems[0]} ' + ' '.join(cmdItems[1:]))
+        proc = subprocess.run(cmdItems, cwd=os.path.abspath(self.workdir),
+                              stdout=subprocess.PIPE, universal_newlines=True)
+        if 'debug' in flags and flags['debug'] != 0:
+            print(proc.stdout)
 
         # retrieve results for fluence field
         if os.path.isfile(filePath['fluenc']):

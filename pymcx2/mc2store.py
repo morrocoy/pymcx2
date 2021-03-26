@@ -10,7 +10,6 @@ import numpy as np
 
 from .log import logmanager
 
-
 logger = logmanager.getLogger(__name__)
 
 
