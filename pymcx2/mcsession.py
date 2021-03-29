@@ -5,6 +5,7 @@ Created on Mon Mar 22 17:58:19 2021
 
 @author: kpapke
 """
+import sys
 import os.path
 import subprocess
 
@@ -15,6 +16,8 @@ from .log import logmanager
 from .findmcx import findMCX
 from .mc2store import loadmc2
 from .mchstore import loadmch
+
+from tempfile import NamedTemporaryFile
 
 __all__ = ['MCSession']
 
@@ -102,6 +105,17 @@ class MCSession(object):
         # result stores
         self.fluence = None  # four-dimensional numpy array (nx, ny, nz, ntime)
         self.detectedPhotons = None  # pandas dataframe
+
+        filePath = {
+            'config': os.path.join(self.workdir, self.name + ".json"),
+            'volume': os.path.join(self.workdir, self.name + ".mcv"),
+            'fluenc': os.path.join(self.workdir, self.name + ".mc2"),
+            'detect': os.path.join(self.workdir, self.name + ".mch"),
+        }
+        # remove any existing files
+        for fp in filePath.values():
+            if os.path.isfile(fp):
+                os.remove(fp)
 
 
 
@@ -262,6 +276,10 @@ class MCSession(object):
         """
         if fileName is None:
             fileName = self.name + ".mcv"
+
+        # if os.path.isfile(fp):
+        #     os.remove(fp)
+
         with open(os.path.join(self.workdir, fileName), 'wb') as file:
             file.write(self.domain['vol'].tobytes(order=order))
 
@@ -299,7 +317,7 @@ class MCSession(object):
         """
         filePath = {
             'config': os.path.join(self.workdir, self.name + ".json"),
-            'volume': os.path.join(self.workdir, self.name + ".mcv"),
+            # 'volume': os.path.join(self.workdir, self.name + ".mcv"),
             'fluenc': os.path.join(self.workdir, self.name + ".mc2"),
             'detect': os.path.join(self.workdir, self.name + ".mch"),
         }
@@ -309,13 +327,13 @@ class MCSession(object):
                 os.remove(fp)
 
         self.dumpJSON()
-        self.dumpVolume()
 
         cmdItems = []  # list of executable and options to construct command
 
         # binary
         mcx = findMCX()
         if mcx is None:
+            print("Warning: Could not find path to mcx.exe.")
             mcx = "mcx.exe"
         cmdItems.append(mcx)
 
@@ -343,12 +361,27 @@ class MCSession(object):
         cmdItems.append(filePath['config'])
 
         # run simulation
+        proc = subprocess.Popen(cmdItems, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, universal_newlines=True)
         if 'debug' in flags and flags['debug'] != 0:
             print(f'{cmdItems[0]} ' + ' '.join(cmdItems[1:]))
-        proc = subprocess.run(cmdItems, cwd=os.path.abspath(self.workdir),
-                              stdout=subprocess.PIPE, universal_newlines=True)
-        if 'debug' in flags and flags['debug'] != 0:
-            print(proc.stdout)
+            print("#" * 80)
+            print("# Monte Carlo eXtreme (MCX) "
+                  "- Copyright (c) 2009-2020 Qianqian Fang")
+            i = 0
+            output = ""
+            for line in iter(proc.stdout.readline, ""):
+                output += line
+                if i > 14 and i !=20 and line not in ['\n', '\r\n']:
+                    sys.stdout.write("# " + line)
+                i += 1
+            print("#" * 80)
+            (_, errors) = proc.communicate()
+        else:
+            (output, errors) = proc.communicate()
+
+        # sys.stderr.write(proc.stderr.read())
+        # print(errors)
 
         # retrieve results for fluence field
         if os.path.isfile(filePath['fluenc']):
@@ -448,6 +481,7 @@ class MCSession(object):
         self.domain['vol'] = np.array(vol, dtype='<B', order='F')
         self.domain['origin'] = originType
         self.domain['scale'] = lengthUnit
+        self.dumpVolume()
 
 
     def setForward(self, t0, t1, dt):
