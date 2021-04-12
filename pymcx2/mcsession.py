@@ -17,7 +17,7 @@ from .findmcx import findMCX
 from .mc2store import loadmc2
 from .mchstore import loadmch
 
-from tempfile import NamedTemporaryFile
+# from tempfile import NamedTemporaryFile
 
 __all__ = ['MCSession']
 
@@ -359,6 +359,7 @@ class MCSession(object):
         # input file
         cmdItems.append("-f")
         cmdItems.append(filePath['config'])
+
 
         # run simulation
         proc = subprocess.Popen(cmdItems, stdout=subprocess.PIPE,
