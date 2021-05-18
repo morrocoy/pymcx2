@@ -20,10 +20,17 @@ from hsi import HSTissueCompound
 
 # add path to make mcx visible
 # alternatively add the path via spyder's python path manager
-# mcx = os.path.join("d:", os.path.sep, "projects", "mcx")
-mcx = os.path.join(os.path.expanduser("~"), "projects", "mcx")
-# mcx = os.path.join(os.path.dirname(__file__), "..", "..", "mcx")
-# mcx = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "mcx"))
+
+# windows system
+if sys.platform == "win32":
+    mcx = os.path.join("d:", os.path.sep, "projects", "mcx")
+    # mcx = os.path.join(os.path.dirname(__file__), "..", "..", "mcx")
+    # mcx = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "mcx"))
+
+# linux system
+else:
+    mcx = os.path.join(os.path.expanduser("~"), "projects", "mcx")
+
 sys.path.append(os.path.abspath(mcx))
 
 from pymcx2 import MCSession

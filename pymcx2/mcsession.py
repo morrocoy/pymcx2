@@ -8,6 +8,8 @@ Created on Mon Mar 22 17:58:19 2021
 import sys
 import os.path
 import subprocess
+import re
+from ast import literal_eval
 
 import numpy as np
 import json
@@ -105,6 +107,16 @@ class MCSession(object):
         # result stores
         self.fluence = None  # four-dimensional numpy array (nx, ny, nz, ntime)
         self.detectedPhotons = None  # pandas dataframe
+
+        # simulation statistics
+        self.stat = {
+            'normalizer': None,  # normalization factor
+            'nphoton': None,  # total simulated photon number
+            'nthread': None,  # total number of threads
+            'runtime': None,  # simulation run-time per photon [ms/photon]
+            'energytot': None,  # total initial weight/energy of all launched photons
+            'energyabs': None,  # total absorbed weight/energy of all photons
+        }
 
         filePath = {
             'config': os.path.join(self.workdir, self.name + ".json"),
@@ -295,6 +307,39 @@ class MCSession(object):
         """
         pass
 
+    @staticmethod
+    def parseValue(tag, string):
+        """Evaluate a tagged value from a string
+
+        Parameters
+        ----------
+        tag : str
+            The identifier for the value.
+        string : str
+            The input string.
+
+        Returns
+        -------
+        int, float, list
+            The evaluated value after the tag. If no value was found, the
+            function returns None.
+        """
+        match = re.search(r'%s(.*)' % tag, string)
+        if not match:
+            return None
+
+        sval = match.group(1)
+        regex = r'[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?'
+        match = re.findall(regex, sval)
+
+        n = len(match)
+        if n > 1:
+            return [literal_eval(s) for s in match]
+        elif n == 1:
+            return literal_eval(match[0])
+        else:
+            return None
+
 
     def run(self, thread="auto", **flags):
         """ Execute the simulation with optional flags.
@@ -383,6 +428,23 @@ class MCSession(object):
 
         # sys.stderr.write(proc.stderr.read())
         # print(errors)
+
+        # simulation statistics
+        field_0 = self.parseValue("normalization factor alpha", output)
+        field_1 = self.parseValue("simulated", output)
+        field_2 = self.parseValue("MCX simulation speed", output)
+        field_3 = self.parseValue("total simulated energy", output)
+
+        self.stat["normalizer"] = field_0
+        self.stat["nphoton"] = field_1[0] if isinstance(
+            field_1, list) and len(field_1) > 0 else None
+        self.stat["nthread"] = field_1[2] if isinstance(
+            field_1, list) and len(field_1) > 2 else None
+        self.stat["runtime"] = field_2
+        self.stat["energytot"] = field_3[0] if isinstance(
+            field_3, list) and len(field_3) > 0 else None
+        self.stat["energyabs"] = field_3[0] * field_3[1] / 100 if isinstance(
+            field_3, list) and len(field_3) > 1 else None
 
         # retrieve results for fluence field
         if os.path.isfile(filePath['fluenc']):

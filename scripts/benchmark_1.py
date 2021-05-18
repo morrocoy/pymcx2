@@ -13,10 +13,17 @@ import matplotlib.pyplot as plt
 
 # add path to make mcx visible
 # alternatively add the path via spyder's python path manager
-# mcx = os.path.join("d:", os.path.sep, "projects", "mcx")
-mcx = os.path.join(os.path.expanduser("~"), "projects", "mcx")
-# mcx = os.path.join(os.path.dirname(__file__), "..", "..", "mcx")
-# mcx = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "mcx"))
+
+# windows system
+if sys.platform == "win32":
+    mcx = os.path.join("d:", os.path.sep, "projects", "mcx")
+    # mcx = os.path.join(os.path.dirname(__file__), "..", "..", "mcx")
+    # mcx = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "mcx"))
+
+# linux system
+else:
+    mcx = os.path.join(os.path.expanduser("~"), "projects", "mcx")
+
 sys.path.append(os.path.abspath(mcx))
 
 from pymcx2 import MCSession
@@ -44,10 +51,10 @@ session.setSourceType(type='pencil')
 session.addDetector(pos=[50, 50, 0], radius=50)  # optional detector
 
 session.setOutput(type="E", normalize=True, mask="DSPMXVW")
-session.dumpJSON()
-session.dumpVolume()
+# session.dumpJSON()
+# session.dumpVolume()
 
-session.run(thread='auto', debug='P', blocksize=64)
+session.run(thread='auto', debug='P')#, blocksize=64)
 
 # post processing .........................................................
 data = session.fluence[..., 0]  # last index refers to time step
@@ -59,10 +66,19 @@ diffrefl = np.abs(np.sum(data[..., 0])) * (1 - specrefl)  # diffuse reflect
 absorbed = np.sum(data[:, :, 1:]) * (1 - specrefl)  # absorbed fraction
 transmitted = 1 - diffrefl - absorbed - specrefl  # total transmittance
 
+print("\nSimulation results")
+print("------------------------------")
 print("\nAbsorbed fraction: %f" % absorbed)
 print("Diffuse reflectance: %f" % diffrefl)
 print("Specular reflectance: %f" % specrefl)
 print("Total transmittance: %f" % transmitted)
+
+print("\nSimulation statistics")
+print("------------------------------")
+# print(session.stat)
+for key, value in session.stat.items():
+    print(f"{key}: {value}")
+# print(session.stat["energyabs"] / session.stat["energytot"])
 
 print("\nDetected photons:")
 print(session.detectedPhotons)

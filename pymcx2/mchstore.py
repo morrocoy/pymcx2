@@ -64,7 +64,7 @@ class MCHStore(object):
             float with little endianness.
         """
         self.file = None  # underlying file pointer
-        self.owner = False  # ownership of the underlying file
+        self.owner = False  # ownership for the underlying file
         self.mode = None  # read write mode
 
         # mch file chunks
