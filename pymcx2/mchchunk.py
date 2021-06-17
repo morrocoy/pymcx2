@@ -7,6 +7,7 @@ Created on Tue Mar 16 7:12:51 2021
 """
 import numpy as np
 
+from .bindings import ordered_dict
 from .log import logmanager
 
 __all__ = ['MCHFileChunk']
@@ -93,7 +94,7 @@ class MCHFileChunk(object):
         # flags indicating the availability of data for each key
         self.flags = None  # to fill up bytes
         # template for column names for each key
-        self._cols = {
+        self._cols = ordered_dict({
             "detectid": ["detectid"],
             "nscatter": ["nscatter_mat"],
             "ppathlen": ["ppathlen_mat"],
@@ -101,10 +102,11 @@ class MCHFileChunk(object):
             "pos_exit": ["pos_exit_x", "pos_exit_y", "pos_exit_z"],
             "dir_exit": ["dir_exit_x", "dir_exit_y", "dir_exit_z"],
             "weight": ["weight"],
-        }
+        })
+
         # available column names for each key
-        self.cols = {key: [] for key in self.keys}
-        self.index = {key: None for key in self.keys}
+        self.cols = ordered_dict({key: [] for key in self.keys})
+        self.index = ordered_dict({key: None for key in self.keys})
 
         # attributes of metadata
         self.version = None  # version of the mch file
@@ -292,7 +294,8 @@ class MCHFileChunk(object):
         # read data
         logger.debug("Reading chunk data at {}".format(self.file.tell()))
         shape = (self.savedphoton, self.ncol)
-        buffer = np.fromfile(self.file, dtype=self.dtype, count=np.prod(shape))
+        buffer = np.fromfile(
+            self.file, dtype=self.dtype, count=int(np.prod(shape)))
         data = buffer.reshape(shape)
 
         return data
@@ -310,7 +313,8 @@ class MCHFileChunk(object):
         if self.seedbyte:
             logger.debug("Reading chunk seed at {}".format(self.file.tell()))
             shape = (self.seedbyte, self.savedphoton)
-            buffer = np.fromfile(self.file, dtype='B', count=np.prod(shape))
+            buffer = np.fromfile(
+                self.file, dtype='B', count=int(np.prod(shape)))
             seed = buffer.reshape(shape, order='F')
             # seed = seed.transpose((0, 2, 1))
             seed = seed.transpose()

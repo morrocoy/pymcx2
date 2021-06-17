@@ -9,8 +9,7 @@ import sys
 import os.path
 
 import numpy as np
-# import matplotlib.pyplot as plt
-
+import matplotlib.pyplot as plt
 
 
 # add path to make mcx visible
@@ -79,23 +78,30 @@ print("\nSimulation statistics")
 print("------------------------------")
 # print(session.stat)
 for key, value in session.stat.items():
-    print(f"{key}: {value}")
+    print("{}: {}".format(key, value))
 # print(session.stat["energyabs"] / session.stat["energytot"])
 
 print("\nDetected photons:")
 print(session.detectedPhotons)
 
+
+session2 = MCSession('benchmark_1x2', workdir=data_path, keepFiles=True)
+data2 = session2.fluence[..., 0]
+
+
+print(np.max(np.abs(data-data2)))
+
 # plot slice of fluence data ..............................................
-# dataSlice = data[:, :, 0]
-# dataSlice = np.log10(np.abs(dataSlice))
-#
-# fig = plt.figure()
-# ax = fig.add_subplot(1, 1, 1)
-# pos = plt.imshow(dataSlice, vmin=-10, vmax=-2, cmap='jet')
-# # pos = ax.contourf(dataSlice, levels=np.arange(-10, -1, 1), cmap='jet')
-# fig.colorbar(pos, ax=ax)
-# plt.show()
-# plt.close()
-#
+dataSlice = data[:, :, 0]
+dataSlice = np.log10(np.abs(dataSlice))
+
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+pos = plt.imshow(dataSlice, vmin=-10, vmax=-2, cmap='jet')
+# pos = ax.contourf(dataSlice, levels=np.arange(-10, -1, 1), cmap='jet')
+fig.colorbar(pos, ax=ax)
+plt.show()
+plt.close()
+
 
 

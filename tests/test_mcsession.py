@@ -27,9 +27,6 @@ if sys.platform == "win32":
 else:
     mcx = os.path.join(os.path.expanduser("~"), "projects", "mcx")
 
-# add path to make mcx visible
-# mcx = os.path.join(os.path.dirname(__file__), "..", "..", "mcx")
-# mcx = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "mcx"))
 sys.path.append(os.path.abspath(mcx))
 
 from pymcx2 import MCSession

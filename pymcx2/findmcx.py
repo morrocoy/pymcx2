@@ -7,6 +7,6 @@ def findMCX():
         patterns = ["bin/mcx.exe", "mcx.exe", "bin/mcx", "mcx"]
         for pattern in patterns:
             for pp in glob_path.glob(pattern):
-                return pp
+                return str(pp)
 
     return None

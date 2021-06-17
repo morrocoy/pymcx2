@@ -14,11 +14,12 @@ from ast import literal_eval
 import numpy as np
 import json
 
-from .log import logmanager
+from .bindings import ordered_dict
 from .findmcx import findMCX
 from .mc2store import loadmc2
 from .mchstore import loadmch
 
+from .log import logmanager
 # from tempfile import NamedTemporaryFile
 
 __all__ = ['MCSession']
@@ -31,7 +32,7 @@ class MCSession(object):
 
     """
 
-    def __init__(self, name, workdir, seed=-1):
+    def __init__(self, name, workdir, seed=-1, autoload=False):
         """ Constructor.
 
         Parameters
@@ -53,48 +54,55 @@ class MCSession(object):
             os.makedirs(self.workdir)
 
         # boundary settings
-        self.boundary = {
+        self.boundary = ordered_dict({
             'specular': True,  # enable specular reflection
             'missmatch': True,  # considers refractive index mismatch
             'n0': 1,  # background refractive index
             'bc': "______000000",  # per-face boundary conditions.
-        }
+        })
 
         # detectors settings
-        self.detector = {
-        }
+        self.detector = ordered_dict({
+        })
 
         # domain settings
-        self.domain = {
+        self.domain = ordered_dict({
             'vol': None,  # domain volume as 2-d or 3-d array
+            'shape': tuple(),  # shape of vol
             'origin': 0,  # coordinate origin mode of the volume [1 1 1].
             'scale': 1.,  # edge length in mm
-        }
+        })
 
         # time domain setting
-        self.forward = {
+        self.forward = ordered_dict({
             't0' : 0.0,  # start time
             't1': 5.0e-9,  # end time
             'dt': 5.0e-9,  # time step
             'ntime': 1,  # number of time steps
-        }
+        })
 
         # material settings (initialize with background material of tag 0)
-        self.material = {
-            'mat0': {'tag': 0, 'mua': 0., 'mus': 0., 'g': 1., 'n': 1.}
-        }
+        self.material = ordered_dict({
+            'mat0': ordered_dict({
+                'tag': 0,
+                'mua': 0.,
+                'mus': 0.,
+                'g': 1.,
+                'n': 1.
+            })
+        })
 
 
         # output settings
-        self.output = {
+        self.output = ordered_dict({
             'type': "X",  # type of data to be saved in the volumetric output
             'normalize': True,  # normalize the solutions
             'mask': "DP",  # parameters to be saved for detected photons.
             'format': "mc2",  # volumetric data output format
-        }
+        })
 
         # source settings
-        self.source = {
+        self.source = ordered_dict({
             'nphoton': 1e3,  # total number of photons to be simulated
             'pos': [0, 0, 0],  # grid position of a source in grid unit
             'dir': [0, 0, 1],  # directional vector of the photon at launch
@@ -102,33 +110,38 @@ class MCSession(object):
             'param1': None,  # source type parameters
             'param2': None,  # additional Source type parameters
             'pattern': None  # additional Source type parameters
-        }
+        })
 
         # result stores
         self.fluence = None  # four-dimensional numpy array (nx, ny, nz, ntime)
         self.detectedPhotons = None  # pandas dataframe
 
         # simulation statistics
-        self.stat = {
+        self.stat = ordered_dict({
             'normalizer': None,  # normalization factor
             'nphoton': None,  # total simulated photon number
             'nthread': None,  # total number of threads
             'runtime': None,  # simulation run-time per photon [ms/photon]
             'energytot': None,  # total initial weight/energy of all launched photons
             'energyabs': None,  # total absorbed weight/energy of all photons
-        }
+        })
 
-        filePath = {
+        filePath = ordered_dict({
             'config': os.path.join(self.workdir, self.name + ".json"),
             'volume': os.path.join(self.workdir, self.name + ".mcv"),
             'fluenc': os.path.join(self.workdir, self.name + ".mc2"),
             'detect': os.path.join(self.workdir, self.name + ".mch"),
-        }
-        # remove any existing files
-        for fp in filePath.values():
-            if os.path.isfile(fp):
-                os.remove(fp)
+        })
 
+        if autoload:
+            self.loadJSON(filePath['config'])  # retrieve configuration data
+            self.loadVolume(filePath['volume'])  # retrieve volume data
+            self.loadResults()  # retrieve fluence and detector data
+
+        # else:
+        #     for fp in filePath.values():
+        #         if os.path.isfile(fp):
+        #             os.remove(fp)
 
 
     def addDetector(self, pos, radius):
@@ -151,11 +164,11 @@ class MCSession(object):
         """
         id = len(self.detector)
         name = "det%d" % id
-        self.detector[name] = {
+        self.detector[name] = ordered_dict({
             'id': id,
             'pos': pos,
             'radius': radius,
-        }
+        })
         return id
 
 
@@ -182,13 +195,13 @@ class MCSession(object):
         """
         tag = len(self.material)
         name = "mat%d" % tag
-        self.material[name] = {
+        self.material[name] = ordered_dict({
             'tag': tag,
             'mua': mua,
             'mus': mus,
             'g': g,
             'n': n
-        }
+        })
         return tag
 
 
@@ -203,8 +216,8 @@ class MCSession(object):
         volumeFile = os.path.abspath(
             os.path.join(self.workdir, self.name+".mcv"))
 
-        cfg = {
-            'Session': {
+        cfg = ordered_dict({
+            'Session': ordered_dict({
                 'ID': self.name,
                 'RootPath': os.path.abspath(self.workdir),
                 'Photons': int(self.source['nphoton']),
@@ -223,29 +236,35 @@ class MCSession(object):
                 'SaveDataMask': self.output['mask'],
                 'OutputFormat': self.output['format'],
                 'OutputType': self.output['type']
-            },
-            'Forward': {
+            }),
+            'Forward': ordered_dict({
                 'T0': self.forward['t0'],
                 'T1': self.forward['t1'],
                 'Dt': self.forward['dt'],
                 'N0': self.boundary['n0'],
-            },
-            'Optode': {
-                'Source': {
+            }),
+            'Optode': ordered_dict({
+                'Source': ordered_dict({
                     'Type': self.source['type'],
                     'Pos': self.source['pos'],
                     'Dir': self.source['dir'],
-                },
-            },
-            'Domain': {
+                }),
+            }),
+            'Domain': ordered_dict({
                 'VolumeFile': volumeFile,
                 'Dim': list(self.domain['vol'].shape),
                 'OriginType': self.domain['origin'],
                 'LengthUnit': self.domain['scale'],
-                'Media': [{'mua': mat['mua'], "mus": mat['mus'], "g": mat['g'],
-                           "n": mat['n']} for mat in self.material.values()]
-            },
-        }
+                'Media': [
+                    ordered_dict({
+                        'mua': mat['mua'],
+                        "mus": mat['mus'],
+                        "g": mat['g'],
+                        "n": mat['n']
+                    }) for mat in self.material.values()
+                ]
+            }),
+        })
 
         # optional source parameters
         for key in ('Param1', 'Param2', 'Pattern'):
@@ -254,8 +273,13 @@ class MCSession(object):
 
         # optional detector configuration
         if len(self.detector):
-            cfg['Optode']['Detector'] = [{"Pos": det['pos'], "R": det['radius']}
-                                         for det in self.detector.values()]
+            cfg['Optode']['Detector'] = [
+                ordered_dict({
+                    'Pos': det['pos'],
+                    'R': det['radius']
+                })
+                for det in self.detector.values()
+            ]
 
         return json.dumps(cfg, sort_keys=False, indent=4)
 
@@ -300,7 +324,7 @@ class MCSession(object):
     def clearFiles(self):
         """ Remove all simulation files. """
         for ext in ["json", "mch", "mc2", "mcv"]:
-            fp = os.path.join(self.workdir, f"{self.name}.{ext}")
+            fp = os.path.join(self.workdir, "%s.%s" %(self.name, ext))
             if os.path.isfile(fp):
                 os.remove(fp)
 
@@ -314,7 +338,207 @@ class MCSession(object):
             Either a filename within the working directory or a full path to
             the input file.
         """
-        pass
+
+        if not os.path.isfile(filePath):
+            return
+
+        with open(filePath) as file:
+            cfg = json.load(file)
+
+        # get session configuration
+        session = cfg.get('Session', None)
+        if session is None or any(
+                [entry not in session for entry in ["ID", "Photons"]]):
+            logger.debug("Invalid configuration found for the main "
+                         "settings in %s." % (filePath))
+            return
+
+        # get forward configuration
+        forward = cfg.get('Forward', None)
+        if forward is None or any(
+                [entry not in forward for entry in ["T0", "T1", "Dt"]]):
+            logger.debug("Invalid configuration found for the forward "
+                         "settings in %s." % (filePath))
+            return
+
+        # get optode configuration
+        optode = cfg.get('Optode', None)
+        if optode is None or "source" not in optode or any(
+                [entry not in optode['source']
+                 for entry in ["Type", "Pos", "Dir"]]):
+            logger.debug("Invalid configuration found for the optode or source "
+                         "settings in %s." % (filePath))
+            return
+
+        # get domain configuration
+        domain = cfg.get('Domain', None)
+        if domain is None or any(
+                [entry not in domain for entry in ["Dim", "Media"]]):
+            logger.debug("Invalid configuration found for the domain "
+                         "settings in %s." % (filePath))
+            return
+
+        # get material configuration
+        media = domain.get('Media', None)
+        if not isinstance(media, list) or any([
+            any([sub_entry not in entry
+                 for sub_entry in ["mua", "mus", "g", "n"]])
+            for entry in media]):
+            logger.debug("Invalid configuration found for the media "
+                         "settings in %s." % (filePath))
+            return
+
+        # apply session configuration
+        self.name = session.get('ID')
+        self.seed = session.get('RNGSeed', -1)
+
+        self.source['nphoton'] = session.get('Photons')
+
+        self.boundary['missmatch'] = session.get('DoMismatch', True)
+        self.boundary['specular'] = session.get('DoSpecular', True)
+
+        self.output['normalize'] = session.get('DoNormalize', True)
+        self.output['format'] = session.get('OutputFormat', "mc2")
+        self.output['type'] = session.get('OutputType', "X")
+
+        mask = session.get('SaveDataMask', "D")
+        if session.get('DoPartialPath', True) and "P" not in mask:
+            mask += 'P'
+        if session.get('DoDCS', False) and 'M' not in mask:
+            mask += 'M'
+        if session.get('DoSaveExit', False) and 'X' not in mask:
+            mask += 'X'
+        if session.get("DoSaveExit", False) and 'V' not in mask:
+            mask += 'V'
+        self.output['mask'] = mask
+
+        # apply forward configuration
+        self.forward['t0'] = forward.get('T0', 0)
+        self.forward['t1'] = forward.get('T1', 5e-9)
+        self.forward['dt'] = forward.get('Dt', 5e-9)
+        self.forward['ntime'] = int(
+            (self.forward['t1'] - self.forward['t0']) // self.forward['dt']
+        )
+
+        self.boundary['n0'] = forward.get('N0', 1.)
+
+        # apply optode configuration
+        source = optode.get('Source')
+        self.source['type'] = source.get('Type', "pencil")
+        self.source['pos'] = source.get('Pos', [30, 30, 0])
+        self.source['dir'] = source.get('Dir', [0, 0, 1])
+
+        detector = optode.get("Detector", None)
+        self.detector.clear()
+        if detector is not None and isinstance(detector, list):
+            for id, det in enumerate(detector):
+                name = "det%d" % id
+                self.detector[name] = ordered_dict({
+                    'id': id,
+                    'pos': det.get("Pos", [25, 30, 0]),
+                    'radius': det.get("R", 1),
+                })
+
+        # apply domain configuration
+        domain = cfg.get('Domain', None)
+
+        shape = domain.get('Dim')
+        # set empty domain filled with zeros
+        self.domain['vol'] = np.zeros(shape, dtype='<B', order='F')
+
+        self.domain['origin'] = cfg.get('OriginType', 0)
+        self.domain['scale'] = cfg.get('LengthUnit', 1.)
+
+        # apply material configuration
+        self.material.clear()
+        for i, mat in enumerate(media):
+            name = "mat%d" % i
+            self.material[name] = ordered_dict({
+                'tag': i,
+                'mua': mat['mua'],
+                'mus': mat['mus'],
+                'g': mat['g'],
+                'n': mat['n']
+            })
+
+
+    def loadResults(self):
+        """ Explicit load of simulation results from the working directory. """
+
+        # retrieve results for fluence field
+        filePath = os.path.join(self.workdir, self.name + ".mc2")
+        if os.path.isfile(filePath):
+            shape = self.domain['vol'].shape + (self.forward['ntime'], )
+            logger.debug("Reading file {} with shape {}.".format(
+                filePath, shape))
+            store = loadmc2(filePath, shape)
+            self.fluence = store.asarray()  # four-dimensional array
+        else:
+            logger.debug("File {} not found.".format(filePath))
+            self.fluence = None
+
+
+        # retrieve results for detected photons
+        filePath = os.path.join(self.workdir, self.name + ".mch")
+        if os.path.isfile(filePath):
+            logger.debug("Reading file {}.".format(filePath))
+            store = loadmch(filePath)
+            self.detectedPhotons = store.asDataFrame()  # pandas dataframe
+        else:
+            logger.debug("File {} not found.".format(filePath))
+            self.detectedPhotons = None
+
+
+    def loadVolume(self, filePath, shape):
+        """ Load a volume from an external file.
+
+        Parameters
+        ----------
+        filePath : str
+            The path to the volume input file in binary format (uint8).
+        shape : tuple or list of int
+            The shape of the volume array.
+        """
+        if not os.path.isfile(filePath):
+            return
+
+        buffer = np.fromfile(filePath, dtype='<B', count=int(np.prod(shape)))
+        if len(buffer) == int(np.prod(shape)):
+            logger.debug("Load volume file {} with shape {}.".format(
+                filePath, shape))
+            self.domain['vol'] = buffer.reshape(shape, order='F')
+            self.domain['shape'] = self.domain['vol'].shape
+        else:
+            self.domain['vol'] = None
+            self.domain['shape'] = tuple()
+
+
+    def parseStats(self, message):
+        """ Extract the simulation statistics from message.
+
+        Parameters
+        ----------
+        message : str
+            The string to be parsed for the statistical information including
+            the normalization factor, number of photons, threads, the runtime,
+            total energy, and absorbed energy.
+        """
+        field_0 = self.parseValue("normalization factor alpha", message)
+        field_1 = self.parseValue("simulated", message)
+        field_2 = self.parseValue("MCX simulation speed", message)
+        field_3 = self.parseValue("total simulated energy", message)
+
+        self.stat["normalizer"] = field_0
+        self.stat["nphoton"] = field_1[0] if isinstance(
+            field_1, list) and len(field_1) > 0 else None
+        self.stat["nthread"] = field_1[2] if isinstance(
+            field_1, list) and len(field_1) > 2 else None
+        self.stat["runtime"] = field_2
+        self.stat["energytot"] = field_3[0] if isinstance(
+            field_3, list) and len(field_3) > 0 else None
+        self.stat["energyabs"] = field_3[0] * field_3[1] / 100 if isinstance(
+            field_3, list) and len(field_3) > 1 else None
+
 
     @staticmethod
     def parseValue(tag, string):
@@ -369,12 +593,12 @@ class MCSession(object):
             Additional flags with the prepended '-' or '--' being skipped.
             See mcx help for more information.
         """
-        filePath = {
+        filePath = ordered_dict({
             'config': os.path.join(self.workdir, self.name + ".json"),
             # 'volume': os.path.join(self.workdir, self.name + ".mcv"),
             'fluenc': os.path.join(self.workdir, self.name + ".mc2"),
             'detect': os.path.join(self.workdir, self.name + ".mch"),
-        }
+        })
         # remove any existing files
         for fp in filePath.values():
             if os.path.isfile(fp):
@@ -387,8 +611,12 @@ class MCSession(object):
         # binary
         mcx = findMCX()
         if mcx is None:
-            print("Warning: Could not find path to mcx.exe.")
-            mcx = "mcx.exe"
+            print("Warning: Could not find path to mcx binary.")
+
+            if sys.platform == "win32":
+                mcx = "mcx.exe"
+            else:
+                mcx = "mcx"
         cmdItems.append(mcx)
 
         # number of threads
@@ -418,19 +646,34 @@ class MCSession(object):
         # run simulation
         proc = subprocess.Popen(cmdItems, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, universal_newlines=True)
+
+        # def wrap_text(msg, nchar=79):
+        #     wrapped_lines = []
+        #     for line in re.findall(r'.{1,%s}(?:\s+|$)' % (nchar - 4), msg):
+        #         striped_line = line.strip()
+        #         # (striped_line.ljust(nchar - 4)
+        #         wrapped_lines.append("# %s  \n" % (striped_line))
+        #     return "".join(wrapped_lines)
+
+
         if 'debug' in flags and flags['debug'] != 0:
-            print(f'{cmdItems[0]} ' + ' '.join(cmdItems[1:]))
-            print("#" * 80)
-            print("# Monte Carlo eXtreme (MCX) "
-                  "- Copyright (c) 2009-2020 Qianqian Fang")
+            # print(f'{cmdItems[0]} ' + ' '.join(cmdItems[1:]))
+            print(cmdItems[0] + ' '.join(cmdItems[1:]))
+            print("#" * 79)
+            # print("# Monte Carlo eXtreme (MCX) "
+            #       "- Copyright (c) 2009-2020 Qianqian Fang")
             i = 0
             output = ""
             for line in iter(proc.stdout.readline, ""):
                 output += line
-                if i > 14 and i !=20 and line not in ['\n', '\r\n']:
-                    sys.stdout.write("# " + line)
+                if i > 1 and i < 10 :
+                    sys.stdout.write(line)
+                    # sys.stdout.write("# " + str.strip(line[1:-1]))
+                elif i > 14 and i !=20 and line not in ['\n', '\r\n']:
+                    # sys.stdout.write(wrap_text(line))
+                    sys.stdout.write(line)
                 i += 1
-            print("#" * 80)
+            print("#" * 79)
             (_, errors) = proc.communicate()
         else:
             (output, errors) = proc.communicate()
@@ -438,42 +681,11 @@ class MCSession(object):
         # sys.stderr.write(proc.stderr.read())
         # print(errors)
 
-        # simulation statistics
-        field_0 = self.parseValue("normalization factor alpha", output)
-        field_1 = self.parseValue("simulated", output)
-        field_2 = self.parseValue("MCX simulation speed", output)
-        field_3 = self.parseValue("total simulated energy", output)
+        # extract simulation statistics from output.
+        self.parseStats(output)
 
-        self.stat["normalizer"] = field_0
-        self.stat["nphoton"] = field_1[0] if isinstance(
-            field_1, list) and len(field_1) > 0 else None
-        self.stat["nthread"] = field_1[2] if isinstance(
-            field_1, list) and len(field_1) > 2 else None
-        self.stat["runtime"] = field_2
-        self.stat["energytot"] = field_3[0] if isinstance(
-            field_3, list) and len(field_3) > 0 else None
-        self.stat["energyabs"] = field_3[0] * field_3[1] / 100 if isinstance(
-            field_3, list) and len(field_3) > 1 else None
-
-        # retrieve results for fluence field
-        if os.path.isfile(filePath['fluenc']):
-            shape = self.domain['vol'].shape + (self.forward['ntime'], )
-            logger.debug("Reading file {} with shape {}.".format(
-                filePath['fluenc'], shape))
-            store = loadmc2(filePath['fluenc'], shape)
-            self.fluence = store.asarray()  # four-dimensional array
-        else:
-            logger.debug("File {} not found.".format(filePath['fluenc']))
-            self.fluence = None
-
-        # retrieve results for detected photons
-        if os.path.isfile(filePath['detect']):
-            logger.debug("Reading file {}.".format(filePath['detect']))
-            store = loadmch(filePath['detect'])
-            self.detectedPhotons = store.asDataFrame()  # pandas dataframe
-        else:
-            logger.debug("File {} not found.".format(filePath['detect']))
-            self.detectedPhotons = None
+        # retrieve results for fluence field and detected photons
+        self.loadResults()
 
 
     def setBoundary(self, specular=True, missmatch=True,
@@ -551,6 +763,7 @@ class MCSession(object):
         """
         # mcx requires elements of volume array as little-endian and in F-order
         self.domain['vol'] = np.array(vol, dtype='<B', order='F')
+        self.domain['shape'] = self.domain['vol'].shape
         self.domain['origin'] = originType
         self.domain['scale'] = lengthUnit
         self.dumpVolume()

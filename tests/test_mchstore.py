@@ -17,7 +17,6 @@ import logging
 
 import utils
 from pymcx2 import loadmch, loadmc2
-from pymcx2 import MCHStore, MC2Store
 from pymcx2.log import logmanager
 
 logger = logmanager.getLogger(__name__)
@@ -38,8 +37,8 @@ def main():
     session = cfg['Session']['ID']
 
     # get mesh shape (nx, ny, nz, nt)
-    ntime = round(
-        (cfg["Forward"]["T1"] - cfg["Forward"]["T0"]) / cfg["Forward"]["Dt"])
+    ntime = int(round(
+        (cfg["Forward"]["T1"] - cfg["Forward"]["T0"]) / cfg["Forward"]["Dt"]))
 
     if "Dim" in cfg["Domain"] and cfg["Domain"]["Dim"] != []:
         meshShape = cfg["Domain"]["Dim"] + [ntime]

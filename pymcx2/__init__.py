@@ -14,3 +14,6 @@ from .mchstore import MCHStore, loadmch
 from .mc2store import MC2Store, loadmc2
 from .mcsession import MCSession
 
+
+if findMCX() is None:
+    print("Warning: Could not find path to mcx binary.")

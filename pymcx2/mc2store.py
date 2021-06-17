@@ -171,8 +171,9 @@ class MC2Store(object):
 
         # read data
         logger.debug("Reading data at {}".format(self.file.tell()))
-        buffer = np.fromfile(self.file, dtype=self.dtype, count=np.prod(shape))
-        if len(buffer) == np.prod(shape):
+        buffer = np.fromfile(
+            self.file, dtype=self.dtype, count=int(np.prod(shape)))
+        if len(buffer) == int(np.prod(shape)):
             return buffer.reshape(shape, order=order)
         else:
             logger.debug("Cannot align data to the provided shape")
