@@ -9,7 +9,9 @@ import sys
 import os.path
 
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+
+
 
 # add path to make mcx visible
 # alternatively add the path via spyder's python path manager
@@ -84,16 +86,16 @@ print("\nDetected photons:")
 print(session.detectedPhotons)
 
 # plot slice of fluence data ..............................................
-dataSlice = data[:, :, 0]
-dataSlice = np.log10(np.abs(dataSlice))
-
-fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1)
-pos = plt.imshow(dataSlice, vmin=-10, vmax=-2, cmap='jet')
-# pos = ax.contourf(dataSlice, levels=np.arange(-10, -1, 1), cmap='jet')
-fig.colorbar(pos, ax=ax)
-plt.show()
-plt.close()
-
+# dataSlice = data[:, :, 0]
+# dataSlice = np.log10(np.abs(dataSlice))
+#
+# fig = plt.figure()
+# ax = fig.add_subplot(1, 1, 1)
+# pos = plt.imshow(dataSlice, vmin=-10, vmax=-2, cmap='jet')
+# # pos = ax.contourf(dataSlice, levels=np.arange(-10, -1, 1), cmap='jet')
+# fig.colorbar(pos, ax=ax)
+# plt.show()
+# plt.close()
+#
 
 

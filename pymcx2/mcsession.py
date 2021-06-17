@@ -296,6 +296,15 @@ class MCSession(object):
             file.write(self.domain['vol'].tobytes(order=order))
 
 
+
+    def clearFiles(self):
+        """ Remove all simulation files. """
+        for ext in ["json", "mch", "mc2", "mcv"]:
+            fp = os.path.join(self.workdir, f"{self.name}.{ext}")
+            if os.path.isfile(fp):
+                os.remove(fp)
+
+
     def loadJSON(self, filePath):
         """ Import the configurarion from a json file.
 
