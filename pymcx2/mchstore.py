@@ -18,9 +18,7 @@ from .mchchunk import MCHFileChunk
 logger = logmanager.getLogger(__name__)
 
 
-__all__ = ["MCHStore", "loadmch"]
-
-
+__all__ = ["MCHStore", "load_mch"]
 
 
 class MCHStore(object):
@@ -78,7 +76,7 @@ class MCHStore(object):
         # mch file already open
         if hasattr(fname, "read") and hasattr(fname, "mode"):
             file = fname
-            if file.mode in ('rb'):
+            if file.mode == 'rb':
                 self.file = file
                 self.mode = file.mode
                 self.owner = False  # no ownership of the underlying file
@@ -88,7 +86,7 @@ class MCHStore(object):
 
         # open mch file
         elif os.path.isfile(str(fname)):
-            if mode in ('rb'):
+            if mode == 'rb':
                 logger.debug("Open file object {}.".format(fname))
                 self.file = open(fname, mode)
                 self.mode = mode
@@ -98,18 +96,15 @@ class MCHStore(object):
                     "Unsupported mode to open file: {}.".format(mode))
 
         # load chunks (metadata only)
-        self.loadChunks()
-
+        self.load_chunks()
 
     def __enter__(self):
         logger.debug("MCHStore object __enter__().")
         return self
 
-
     def __exit__(self, exception_type, exception_value, traceback):
         logger.debug("MCHStore object __exit__().")
         self.close()
-
 
     def __getitem__(self, key):
         """ Retrieve a TDMS group from the file by name. """
@@ -124,23 +119,19 @@ class MCHStore(object):
         else:
             raise KeyError("There is no key named '%s' in the mch file" % key)
 
-
     def __len__(self):
         """ Returns the number of saved photons. """
         return self.savedphoton
 
-
-    def _ensureFileOpen(self):
+    def _ensure_file_open(self):
         if self.file is None:
             raise RuntimeError(
                 "Cannot read data after the underlying mch file is closed")
 
-
-    def asarray(self):
+    def as_array(self):
         return self.data
 
-
-    def asDataFrame(self):
+    def as_dataframe(self):
         """ Creates a dataframe from the data of the mch file. """
         columns = []
         for key in self.keys:
@@ -151,41 +142,38 @@ class MCHStore(object):
     def clear(self):
         self.chunks.clear()
 
-
     def close(self):
         """ Close the underlying mch file if it was opened."""
         if self.file is not None and self.owner:
             logger.debug("Close file object.")
             self.file.close()
 
-    def loadChunks(self):
+    def load_chunks(self):
         """ Load all chunks in the mch file. Read in only metadata."""
-        self._ensureFileOpen()
+        self._ensure_file_open()
 
         self.file.seek(0)  # set the pointer to the beginning
-        chunk = MCHFileChunk.readMetadata(self.file, 0, self.dtype)
+        chunk = MCHFileChunk.read_metadata(self.file, 0, self.dtype)
         while not chunk.empty():
             self.chunks.append(chunk)
-            chunk = MCHFileChunk.readMetadata(self.file, 0, self.dtype)
+            chunk = MCHFileChunk.read_metadata(self.file, 0, self.dtype)
         self.file.seek(0)  # Again set the pointer to the beginning
 
-
-    def loadData(self):
+    def load_data(self):
         """ Load the data of all chunks in the mch file."""
-        self._ensureFileOpen()
+        self._ensure_file_open()
 
         if len(self.chunks):
-            self.data = np.vstack([chunk.readData() for chunk in self.chunks])
+            self.data = np.vstack([chunk.read_data() for chunk in self.chunks])
         else:
             self.data = None
 
-
-    def loadSeed(self):
+    def load_seed(self):
         """ Load the seeds of all chunks in the mch file."""
-        self._ensureFileOpen()
+        self._ensure_file_open()
 
         if len(self.chunks) and self.seedbyte:
-            self.seed = np.vstack([chunk.readSeed() for chunk in self.chunks])
+            self.seed = np.vstack([chunk.read_seed() for chunk in self.chunks])
         else:
             self.seed = None
 
@@ -270,15 +258,14 @@ class MCHStore(object):
         """ int: The mch file version."""
         return self.chunks[0].version if len(self.chunks) else None
 
-
     @staticmethod
-    def open(filePath, mode='rb', dtype='<f'):
+    def open(file_path, mode='rb', dtype='<f'):
         """ Creates a new mch File object and reads metadata, leaving the file
         open to allow reading data chunks
 
         Parameters
         ----------
-        filePath : str
+        file_path : str
             The path to the mch file to read as a string or pathlib.Path.
         mode : str, optional
             The mode in which the file is opened. Default is "rb".
@@ -286,36 +273,37 @@ class MCHStore(object):
             The type of the statistical data stored in the file. Default is
             float with little endianness.
         """
-        return MCHStore(filePath, mode=mode, dtype=dtype)
-
+        return MCHStore(file_path, mode=mode, dtype=dtype)
 
     @staticmethod
-    def read(filePath, dtype="<f"):
+    def read(file_path, dtype="<f"):
         """ Creates a new mch store object and reads all data from the file in.
 
         Parameters
         ----------
-        filePath : str
+        file_path : str
             The path to the mch file to read as a string or pathlib.Path.
         dtype: data-type, optional
             The type of the statistical data stored in the file. Default is
             float with little endianness.
         """
+        store = None
         try:
-            store = MCHStore.open(filePath, mode='rb', dtype=dtype)
-            store.loadData()  # load data from each chunk
-            store.loadSeed()  # load seed from each chunk
+            store = MCHStore.open(file_path, mode='rb', dtype=dtype)
+            store.load_data()  # load data from each chunk
+            store.load_seed()  # load seed from each chunk
         finally:
-            store.close()  # close underlying file
+            if isinstance(store, MCHStore):
+                store.close()  # close underlying file
         return store
 
 
-def loadmch(filePath, dtype='<f'):
+def load_mch(file_path, dtype='<f'):
     """ Loads an mch file into a new MCHStore object.
 
     Parameters
     ----------
-    filePath : str
+    file_path : str
         The path to the mch file to read as a string or pathlib.Path.
     dtype: data-type, optional
         The type of the statistical data stored in the file. Default is
@@ -326,64 +314,8 @@ def loadmch(filePath, dtype='<f'):
     store : :class:`MCHStore<pymcx2.MCHStore`
         A store object holding all date from the file.
     """
-    with open(filePath, 'rb') as file:
+    with open(file_path, 'rb') as file:
         store = MCHStore(file, dtype=dtype)
-        store.loadData()  # load data from each chunk
-        store.loadSeed()  # load seed from each chunk
+        store.load_data()  # load data from each chunk
+        store.load_seed()  # load seed from each chunk
     return store
-
-
-# def loadmc2(filePath, dtype='<f'):
-#     """Load mc2 file.
-#
-#     Parameters
-#     ----------
-#     filePath : str
-#         The path to the input file.
-#     shape : tuple or list of int,
-#         A tuple or list to specify the output data dimension (nx, ny, nz, nt).
-#     dtype: data-type, optional
-#         The type of the statistical data stored in the file. Default is
-#         float with little endianness.
-#
-#     Returns
-#     -------
-#     data: np.ndarray
-#         The output MCX solution data array with the specified dimensions.
-#     """
-#     if not os.path.isfile(filePath):
-#         return tuple([])
-#
-#     with open(filePath, 'rb') as file:
-#         buffer = file.read()
-#         data = np.ndarray(
-#             shape, dtype=dtype, buffer=buffer, offset=0, order='F')
-#
-#     return data
-
-
-    #
-    # def as_hdf(self, filepath, mode='w', group='/'):
-    #     """
-    #     Converts the TDMS file into an HDF5 file
-    #
-    #     :param filepath: The path of the HDF5 file you want to write to.
-    #     :param mode: The write mode of the HDF5 file. This can be 'w' or 'a'
-    #     :param group: A group in the HDF5 file that will contain the TDMS data.
-    #     """
-    #     return hdf_export.from_tdms_file(self, filepath, mode, group)
-
-    # def data_chunks(self):
-    #     """ A generator that streams chunks of data from disk.
-    #     This method may only be used when the TDMS file was opened without reading all data immediately.
-    #
-    #     :rtype: Generator that yields :class:`DataChunk` objects
-    #     """
-    #     channel_offsets = defaultdict(int)
-    #     for chunk in self._reader.read_raw_data():
-    #         _convert_data_chunk(chunk, self._raw_timestamps)
-    #         yield DataChunk(self, chunk, channel_offsets)
-    #         for path, data in chunk.channel_data.items():
-    #             channel_offsets[path] += len(data)
-
-

@@ -42,7 +42,7 @@ class MCHFileChunk(object):
 
         Parameters
         ----------
-        mchfile : file object
+        file : file object
             An already opened mch file.
         offset : uint64, optional
             Offset to the current position in file. Default is 0.
@@ -57,7 +57,6 @@ class MCHFileChunk(object):
         self.meta_offset = None  # position of meta data start within chunk
         self.data_offset = None  # position of data start within chunk
         self.seed_offset = None  # position of seeds start within chunk
-
 
         # validate input file
         if hasattr(file, "read"):
@@ -128,10 +127,9 @@ class MCHFileChunk(object):
 
         # load metadata
         if self.file is not None:
-            self.loadMetadata()
+            self.load_metadata()
 
-
-    def _unravelFlags(self, flags):
+    def _unravel_flags(self, flags):
         """Unravel the flags into a readable dictionary.
 
         Bit MCX Flag  Key       Description
@@ -154,8 +152,6 @@ class MCHFileChunk(object):
             return dict(zip(self.keys, values[::-1]))
         else:  # big byte ordering (">", "!")
             return dict(zip(self.keys, values))
-
-
 
     def clear(self):
         self.file = None
@@ -185,7 +181,6 @@ class MCHFileChunk(object):
         self.respin = None
         self.junk = None
 
-
     def empty(self):
         """Check if the chunk is empty."""
         if self.file is None:
@@ -193,19 +188,17 @@ class MCHFileChunk(object):
         else:
             return False
 
-
-    def loadData(self):
+    def load_data(self):
         """Read data of the mch file chunk and store them internally.
         """
-        self.data = self.readData()
+        self.data = self.read_data()
 
-    def loadSeed(self):
+    def load_seed(self):
         """Read seeds of the mch file chunk and store them internally.
         """
-        self.seed = self.readSeed()
+        self.seed = self.read_seed()
 
-
-    def loadMetadata(self):
+    def load_metadata(self):
         """Read metadata of the mch file chunk. """
         if self.empty():
             return -1
@@ -243,7 +236,7 @@ class MCHFileChunk(object):
         self.next_position = self.position + self.next_offset
 
         # flags indicating the availability of data for each key
-        self.flags = self._unravelFlags(flags)
+        self.flags = self._unravel_flags(flags)
 
         # available column names and corresponding index for each key
         index = 0
@@ -282,8 +275,7 @@ class MCHFileChunk(object):
 
         return 0  # no error
 
-
-    def readData(self):
+    def read_data(self):
         """Read data and seed of the mch file chunk. """
         if self.empty() or self.data_offset is None:
             return None
@@ -300,8 +292,7 @@ class MCHFileChunk(object):
 
         return data
 
-
-    def readSeed(self):
+    def read_seed(self):
         """Read data and seed of the mch file chunk. """
         if self.empty() or self.seed_offset is None:
             return None
@@ -323,7 +314,6 @@ class MCHFileChunk(object):
 
         return seed
 
-
     @staticmethod
     def read(file, offset=0, dtype='<f'):
         """Creates a new MCHFileChunk object and reads all data from the
@@ -342,14 +332,13 @@ class MCHFileChunk(object):
         """
         chunk = MCHFileChunk(file, offset, dtype)
         if not chunk.empty():
-            chunk.loadData()
-            chunk.loadSeed()
+            chunk.load_data()
+            chunk.load_seed()
             file.seek(chunk.next_position)
         return chunk
 
-
     @staticmethod
-    def readMetadata(file, offset=0, dtype='<f'):
+    def read_metadata(file, offset=0, dtype='<f'):
         """Creates a new MCHFileChunk object and reads all meta data from the
         currently selected chunk in the mch file
 

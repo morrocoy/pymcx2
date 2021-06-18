@@ -15,9 +15,9 @@ import numpy as np
 import json
 
 from .bindings import ordered_dict
-from .findmcx import findMCX
-from .mc2store import loadmc2
-from .mchstore import loadmch
+from .findmcx import find_mcx
+from .mc2store import load_mc2
+from .mchstore import load_mch
 
 from .log import logmanager
 # from tempfile import NamedTemporaryFile
@@ -45,6 +45,9 @@ class MCSession(object):
             The seed of the CPU random number generator (RNG). A value of -1
             let MCX to automatically seed the CPU-RNG using system clock. A
             value n > 0 sets the CPU-RNG's seed to n.
+        autoload : bool, optional
+            Enable automatic loading of the session parameters if the files are
+            already available in the working directory.
         """
         self.name = name  # seesion id name
         self.workdir = workdir  # working directory
@@ -56,7 +59,7 @@ class MCSession(object):
         # boundary settings
         self.boundary = ordered_dict({
             'specular': True,  # enable specular reflection
-            'missmatch': True,  # considers refractive index mismatch
+            'mismatch': True,  # considers refractive index mismatch
             'n0': 1,  # background refractive index
             'bc': "______000000",  # per-face boundary conditions.
         })
@@ -75,7 +78,7 @@ class MCSession(object):
 
         # time domain setting
         self.forward = ordered_dict({
-            't0' : 0.0,  # start time
+            't0': 0.0,  # start time
             't1': 5.0e-9,  # end time
             'dt': 5.0e-9,  # time step
             'ntime': 1,  # number of time steps
@@ -91,7 +94,6 @@ class MCSession(object):
                 'n': 1.
             })
         })
-
 
         # output settings
         self.output = ordered_dict({
@@ -122,11 +124,11 @@ class MCSession(object):
             'nphoton': None,  # total simulated photon number
             'nthread': None,  # total number of threads
             'runtime': None,  # simulation run-time per photon [ms/photon]
-            'energytot': None,  # total initial weight/energy of all launched photons
+            'energytot': None,  # total init. weight/energy of launched photons
             'energyabs': None,  # total absorbed weight/energy of all photons
         })
 
-        filePath = ordered_dict({
+        file_path = ordered_dict({
             'config': os.path.join(self.workdir, self.name + ".json"),
             'volume': os.path.join(self.workdir, self.name + ".mcv"),
             'fluenc': os.path.join(self.workdir, self.name + ".mc2"),
@@ -134,24 +136,22 @@ class MCSession(object):
         })
 
         if autoload:
-            self.loadJSON(filePath['config'])  # retrieve configuration data
-            self.loadVolume(filePath['volume'])  # retrieve volume data
-            self.loadResults()  # retrieve fluence and detector data
+            self.load_json(file_path['config'])  # retrieve configuration data
+            shape = self.domain['shape']
+            self.load_volume(file_path['volume'], shape)  # retrieve volume data
+            self.load_results()  # retrieve fluence and detector data
 
         # else:
-        #     for fp in filePath.values():
+        #     for fp in file_path.values():
         #         if os.path.isfile(fp):
         #             os.remove(fp)
 
-
-    def addDetector(self, pos, radius):
+    def add_detector(self, pos, radius):
         """ Add a detector. The detector id is automatically chosen and
         returned.
 
         Parameters
         ----------
-        id : int
-            Identifiyer for detector.
         pos : float
             The grid position of a detector, in grid unit.
         radius : float
@@ -160,30 +160,29 @@ class MCSession(object):
         Returns
         -------
         id : int
-            Identifiyer for the detector used for the simulation results.
+            Identifier for the detector used for the simulation results.
         """
-        id = len(self.detector)
-        name = "det%d" % id
+        det_id = len(self.detector)
+        name = "det%d" % det_id
         self.detector[name] = ordered_dict({
-            'id': id,
+            'id': det_id,
             'pos': pos,
             'radius': radius,
         })
-        return id
+        return det_id
 
-
-    def addMaterial(self, mua, mus, g, n):
+    def add_material(self, mua, mus, g, n):
         """ Add a material with specified properties. The material tag is
         automatically chosen and returned.
 
         Parameters
         ----------
         mua : float
-            Absortion coefficient [1/mm].
+            Absorption coefficient [1/mm].
         mus : float
             Scattering coefficient [1/mm].
         g : float
-            Anisothropy of scattering.
+            Anisotropy of scattering.
         n : float
             refractive index.
 
@@ -204,8 +203,7 @@ class MCSession(object):
         })
         return tag
 
-
-    def asJSON(self):
+    def as_json(self):
         """ Returns json object of the configuration.
 
         Returns
@@ -213,7 +211,7 @@ class MCSession(object):
         cfg : json object
             The session configuration.
         """
-        volumeFile = os.path.abspath(
+        volume_file = os.path.abspath(
             os.path.join(self.workdir, self.name+".mcv"))
 
         cfg = ordered_dict({
@@ -222,7 +220,7 @@ class MCSession(object):
                 'RootPath': os.path.abspath(self.workdir),
                 'Photons': int(self.source['nphoton']),
                 'RNGSeed': self.seed,
-                'DoMismatch': self.boundary['missmatch'],
+                'DoMismatch': self.boundary['mismatch'],
                 'DoSaveVolume': True,
                 'DoNormalize': self.output['normalize'],
                 'DoPartialPath': 'P' in self.output['mask'],
@@ -251,8 +249,8 @@ class MCSession(object):
                 }),
             }),
             'Domain': ordered_dict({
-                'VolumeFile': volumeFile,
-                'Dim': list(self.domain['vol'].shape),
+                'VolumeFile': volume_file,
+                'Dim': list(self.domain['shape']),
                 'OriginType': self.domain['origin'],
                 'LengthUnit': self.domain['scale'],
                 'Media': [
@@ -283,66 +281,62 @@ class MCSession(object):
 
         return json.dumps(cfg, sort_keys=False, indent=4)
 
-
-    def dumpJSON(self, fileName=None):
+    def dump_json(self, file_name=None):
         """ Export the configurarion in json format.
 
         Parameters
         ----------
-        fileName : str, optional
+        file_name : str, optional
             The filename. Default is the session id name.
         """
-        if fileName is None:
-            fileName = self.name + ".json"
-        with open(os.path.join(self.workdir, fileName), 'w') as file:
-            file.write(self.asJSON())
+        if file_name is None:
+            file_name = self.name + ".json"
+        with open(os.path.join(self.workdir, file_name), 'w') as file:
+            file.write(self.as_json())
 
-
-    def dumpVolume(self, fileName=None, order='F'):
+    def dump_volume(self, file_name=None, order='F'):
         """ Export the geometry.
 
         Parameters
         ----------
-        fileName : str, optional
+        file_name : str, optional
             The filename. Default is the session id name.
         order : {'C', 'F', 'A'}, optional
             Controls the memory layout of the bytes object. 'C' means C-order,
             'F' means F-order, 'A' (short for Any) means 'F' if a is Fortran
             contiguous, 'C' otherwise. Default is 'F'.
         """
-        if fileName is None:
-            fileName = self.name + ".mcv"
+        if file_name is None:
+            file_name = self.name + ".mcv"
 
         # if os.path.isfile(fp):
         #     os.remove(fp)
 
-        with open(os.path.join(self.workdir, fileName), 'wb') as file:
-            file.write(self.domain['vol'].tobytes(order=order))
+        with open(os.path.join(self.workdir, file_name), 'wb') as file:
+            vol = np.asarray(self.domain['vol'])
+            file.write(vol.tobytes(order=order))
 
-
-
-    def clearFiles(self):
+    def clear_files(self):
         """ Remove all simulation files. """
         for ext in ["json", "mch", "mc2", "mcv"]:
-            fp = os.path.join(self.workdir, "%s.%s" %(self.name, ext))
+            fp = os.path.join(self.workdir, "%s.%s" % (self.name, ext))
             if os.path.isfile(fp):
                 os.remove(fp)
 
-
-    def loadJSON(self, filePath):
-        """ Import the configurarion from a json file.
+    def load_json(self, file_path):
+        """ Import the configuration from a json file.
 
         Parameters
         ----------
-        filePath : str
+        file_path : str
             Either a filename within the working directory or a full path to
             the input file.
         """
 
-        if not os.path.isfile(filePath):
+        if not os.path.isfile(file_path):
             return
 
-        with open(filePath) as file:
+        with open(file_path) as file:
             cfg = json.load(file)
 
         # get session configuration
@@ -350,7 +344,7 @@ class MCSession(object):
         if session is None or any(
                 [entry not in session for entry in ["ID", "Photons"]]):
             logger.debug("Invalid configuration found for the main "
-                         "settings in %s." % (filePath))
+                         "settings in %s." % file_path)
             return
 
         # get forward configuration
@@ -358,16 +352,16 @@ class MCSession(object):
         if forward is None or any(
                 [entry not in forward for entry in ["T0", "T1", "Dt"]]):
             logger.debug("Invalid configuration found for the forward "
-                         "settings in %s." % (filePath))
+                         "settings in %s." % file_path)
             return
 
         # get optode configuration
         optode = cfg.get('Optode', None)
-        if optode is None or "source" not in optode or any(
-                [entry not in optode['source']
+        if optode is None or "Source" not in optode or any(
+                [entry not in optode['Source']
                  for entry in ["Type", "Pos", "Dir"]]):
             logger.debug("Invalid configuration found for the optode or source "
-                         "settings in %s." % (filePath))
+                         "settings in %s." % file_path)
             return
 
         # get domain configuration
@@ -375,7 +369,7 @@ class MCSession(object):
         if domain is None or any(
                 [entry not in domain for entry in ["Dim", "Media"]]):
             logger.debug("Invalid configuration found for the domain "
-                         "settings in %s." % (filePath))
+                         "settings in %s." % file_path)
             return
 
         # get material configuration
@@ -385,18 +379,78 @@ class MCSession(object):
                  for sub_entry in ["mua", "mus", "g", "n"]])
             for entry in media]):
             logger.debug("Invalid configuration found for the media "
-                         "settings in %s." % (filePath))
+                         "settings in %s." % file_path)
             return
 
         # apply session configuration
         self.name = session.get('ID')
         self.seed = session.get('RNGSeed', -1)
+        logger.debug(
+            "Load configuration for session '{}' with seed {} ...".format(
+                self.name, self.seed))
 
+        # apply domain configuration
+        domain = cfg.get('Domain', None)
+        self.domain['vol'] = None  # set empty domain filled with zeros
+        self.domain['shape'] = domain.get('Dim')
+        self.domain['origin'] = cfg.get('OriginType', 0)
+        self.domain['scale'] = cfg.get('LengthUnit', 1.)
+        logger.debug("Load domain settings: {}.".format(self.domain))
+
+        # apply material configuration
+        self.material.clear()
+        for i, mat in enumerate(media):
+            name = "mat%d" % i
+            self.material[name] = ordered_dict({
+                'tag': i,
+                'mua': mat['mua'],
+                'mus': mat['mus'],
+                'g': mat['g'],
+                'n': mat['n']
+            })
+            logger.debug("Load settings for material {}: {}.".format(
+                i, self.material[name]))
+
+        # apply optode configuration
+        source = optode.get('Source')
         self.source['nphoton'] = session.get('Photons')
+        self.source['type'] = source.get('Type', "pencil")
+        self.source['pos'] = source.get('Pos', [30, 30, 0])
+        self.source['dir'] = source.get('Dir', [0, 0, 1])
+        logger.debug(
+            "Load settings for source: {}.".format(self.source))
 
-        self.boundary['missmatch'] = session.get('DoMismatch', True)
+        detector = optode.get("Detector", None)
+        self.detector.clear()
+        if detector is not None and isinstance(detector, list):
+            for i, det in enumerate(detector):
+                name = "det%d" % i
+                self.detector[name] = ordered_dict({
+                    'id': i,
+                    'pos': det.get("Pos", [25, 30, 0]),
+                    'radius': det.get("R", 1),
+                })
+                logger.debug("Load settings for detector {}: {}.".format(
+                    i, self.detector[name]))
+
+        # apply forward configuration
+        self.boundary['mismatch'] = session.get('DoMismatch', True)
         self.boundary['specular'] = session.get('DoSpecular', True)
+        self.boundary['n0'] = forward.get('N0', 1.)
+        logger.debug(
+            "Load boundary settings: {}.".format(self.boundary))
 
+        # apply forward configuration
+        self.forward['t0'] = forward.get('T0', 0)
+        self.forward['t1'] = forward.get('T1', 5e-9)
+        self.forward['dt'] = forward.get('Dt', 5e-9)
+        self.forward['ntime'] = int(
+            (self.forward['t1'] - self.forward['t0']) // self.forward['dt']
+        )
+        logger.debug(
+            "Load forward settings: {}.".format(self.forward))
+
+        # apply output configuration
         self.output['normalize'] = session.get('DoNormalize', True)
         self.output['format'] = session.get('OutputFormat', "mc2")
         self.output['type'] = session.get('OutputType', "X")
@@ -411,122 +465,72 @@ class MCSession(object):
         if session.get("DoSaveExit", False) and 'V' not in mask:
             mask += 'V'
         self.output['mask'] = mask
+        logger.debug(
+            "Load output settings: {}.".format(self.output))
 
-        # apply forward configuration
-        self.forward['t0'] = forward.get('T0', 0)
-        self.forward['t1'] = forward.get('T1', 5e-9)
-        self.forward['dt'] = forward.get('Dt', 5e-9)
-        self.forward['ntime'] = int(
-            (self.forward['t1'] - self.forward['t0']) // self.forward['dt']
-        )
-
-        self.boundary['n0'] = forward.get('N0', 1.)
-
-        # apply optode configuration
-        source = optode.get('Source')
-        self.source['type'] = source.get('Type', "pencil")
-        self.source['pos'] = source.get('Pos', [30, 30, 0])
-        self.source['dir'] = source.get('Dir', [0, 0, 1])
-
-        detector = optode.get("Detector", None)
-        self.detector.clear()
-        if detector is not None and isinstance(detector, list):
-            for id, det in enumerate(detector):
-                name = "det%d" % id
-                self.detector[name] = ordered_dict({
-                    'id': id,
-                    'pos': det.get("Pos", [25, 30, 0]),
-                    'radius': det.get("R", 1),
-                })
-
-        # apply domain configuration
-        domain = cfg.get('Domain', None)
-
-        shape = domain.get('Dim')
-        # set empty domain filled with zeros
-        self.domain['vol'] = np.zeros(shape, dtype='<B', order='F')
-
-        self.domain['origin'] = cfg.get('OriginType', 0)
-        self.domain['scale'] = cfg.get('LengthUnit', 1.)
-
-        # apply material configuration
-        self.material.clear()
-        for i, mat in enumerate(media):
-            name = "mat%d" % i
-            self.material[name] = ordered_dict({
-                'tag': i,
-                'mua': mat['mua'],
-                'mus': mat['mus'],
-                'g': mat['g'],
-                'n': mat['n']
-            })
-
-
-    def loadResults(self):
+    def load_results(self):
         """ Explicit load of simulation results from the working directory. """
 
         # retrieve results for fluence field
-        filePath = os.path.join(self.workdir, self.name + ".mc2")
-        if os.path.isfile(filePath):
-            shape = self.domain['vol'].shape + (self.forward['ntime'], )
+        file_path = os.path.join(self.workdir, self.name + ".mc2")
+        if os.path.isfile(file_path):
+            shape = self.domain['shape'] + (self.forward['ntime'], )
             logger.debug("Reading file {} with shape {}.".format(
-                filePath, shape))
-            store = loadmc2(filePath, shape)
-            self.fluence = store.asarray()  # four-dimensional array
+                file_path, shape))
+            store = load_mc2(file_path, shape)
+            self.fluence = store.as_array()  # four-dimensional array
         else:
-            logger.debug("File {} not found.".format(filePath))
+            logger.debug("File {} not found.".format(file_path))
             self.fluence = None
 
-
         # retrieve results for detected photons
-        filePath = os.path.join(self.workdir, self.name + ".mch")
-        if os.path.isfile(filePath):
-            logger.debug("Reading file {}.".format(filePath))
-            store = loadmch(filePath)
-            self.detectedPhotons = store.asDataFrame()  # pandas dataframe
+        file_path = os.path.join(self.workdir, self.name + ".mch")
+        if os.path.isfile(file_path):
+            logger.debug("Reading file {}.".format(file_path))
+            store = load_mch(file_path)
+            self.detectedPhotons = store.as_dataframe()  # pandas dataframe
         else:
-            logger.debug("File {} not found.".format(filePath))
+            logger.debug("File {} not found.".format(file_path))
             self.detectedPhotons = None
 
-
-    def loadVolume(self, filePath, shape):
+    def load_volume(self, file_path, shape):
         """ Load a volume from an external file.
 
         Parameters
         ----------
-        filePath : str
+        file_path : str
             The path to the volume input file in binary format (uint8).
         shape : tuple or list of int
             The shape of the volume array.
         """
-        if not os.path.isfile(filePath):
+        if not os.path.isfile(file_path):
             return
 
-        buffer = np.fromfile(filePath, dtype='<B', count=int(np.prod(shape)))
+        buffer = np.fromfile(file_path, dtype='<B', count=int(np.prod(shape)))
         if len(buffer) == int(np.prod(shape)):
             logger.debug("Load volume file {} with shape {}.".format(
-                filePath, shape))
-            self.domain['vol'] = buffer.reshape(shape, order='F')
-            self.domain['shape'] = self.domain['vol'].shape
+                file_path, shape))
+            vol = buffer.reshape(shape, order='F')
+            self.domain['vol'] = vol
+            self.domain['shape'] = vol.shape
         else:
             self.domain['vol'] = None
             self.domain['shape'] = tuple()
 
-
-    def parseStats(self, message):
+    def parse_stats(self, string):
         """ Extract the simulation statistics from message.
 
         Parameters
         ----------
-        message : str
+        string : str
             The string to be parsed for the statistical information including
             the normalization factor, number of photons, threads, the runtime,
             total energy, and absorbed energy.
         """
-        field_0 = self.parseValue("normalization factor alpha", message)
-        field_1 = self.parseValue("simulated", message)
-        field_2 = self.parseValue("MCX simulation speed", message)
-        field_3 = self.parseValue("total simulated energy", message)
+        field_0 = self.parse_value("normalization factor alpha", string)
+        field_1 = self.parse_value("simulated", string)
+        field_2 = self.parse_value("MCX simulation speed", string)
+        field_3 = self.parse_value("total simulated energy", string)
 
         self.stat["normalizer"] = field_0
         self.stat["nphoton"] = field_1[0] if isinstance(
@@ -539,9 +543,8 @@ class MCSession(object):
         self.stat["energyabs"] = field_3[0] * field_3[1] / 100 if isinstance(
             field_3, list) and len(field_3) > 1 else None
 
-
     @staticmethod
-    def parseValue(tag, string):
+    def parse_value(tag, string):
         """Evaluate a tagged value from a string
 
         Parameters
@@ -573,7 +576,6 @@ class MCSession(object):
         else:
             return None
 
-
     def run(self, thread="auto", **flags):
         """ Execute the simulation with optional flags.
 
@@ -581,35 +583,27 @@ class MCSession(object):
         ----------
         thread : str or int, optional
             The number of total threads. Default is auto.
-        debug : int or str, optionally
-            Debug flags. If integer, must be positive; if string, must be made
-            of any combinations of:
-
-                - 1 or 'R' debug RNG
-                - 2 or 'M' store photon trajectory info (saved in a .mct file)
-                - 4 or 'P' print progress bar
-
         **flags : dict
             Additional flags with the prepended '-' or '--' being skipped.
             See mcx help for more information.
         """
-        filePath = ordered_dict({
+        file_path = ordered_dict({
             'config': os.path.join(self.workdir, self.name + ".json"),
             # 'volume': os.path.join(self.workdir, self.name + ".mcv"),
             'fluenc': os.path.join(self.workdir, self.name + ".mc2"),
             'detect': os.path.join(self.workdir, self.name + ".mch"),
         })
         # remove any existing files
-        for fp in filePath.values():
+        for fp in file_path.values():
             if os.path.isfile(fp):
                 os.remove(fp)
 
-        self.dumpJSON()
+        self.dump_json()
 
-        cmdItems = []  # list of executable and options to construct command
+        cmd_items = []  # list of executable and options to construct command
 
         # binary
-        mcx = findMCX()
+        mcx = find_mcx()
         if mcx is None:
             print("Warning: Could not find path to mcx binary.")
 
@@ -617,60 +611,45 @@ class MCSession(object):
                 mcx = "mcx.exe"
             else:
                 mcx = "mcx"
-        cmdItems.append(mcx)
+        cmd_items.append(mcx)
 
         # number of threads
-        if not 'A' in flags.keys() and not 'autopilot' in flags.keys():
+        if 'A' not in flags.keys() and 'autopilot' not in flags.keys():
             flags['A'] = 1 if thread == "auto" else 0
         if isinstance(thread, int):
             flags['thread'] = thread
 
         # boundary conditions
-        if not 'B' in flags.keys() and not 'bc' in flags.keys():
+        if 'B' not in flags.keys() and 'bc' not in flags.keys():
             flags['bc'] = self.boundary['bc']
 
         # add options and flags to command
         for key, val in flags.items():
             if len(key) > 1:
-                cmdItems.append("--" + key)
+                cmd_items.append("--" + key)
             else:
-                cmdItems.append("-" + key)
-            cmdItems.append(str(val))
-
+                cmd_items.append("-" + key)
+            cmd_items.append(str(val))
 
         # input file
-        cmdItems.append("-f")
-        cmdItems.append(filePath['config'])
-
+        cmd_items.append("-f")
+        cmd_items.append(file_path['config'])
 
         # run simulation
-        proc = subprocess.Popen(cmdItems, stdout=subprocess.PIPE,
+        proc = subprocess.Popen(cmd_items, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, universal_newlines=True)
 
-        # def wrap_text(msg, nchar=79):
-        #     wrapped_lines = []
-        #     for line in re.findall(r'.{1,%s}(?:\s+|$)' % (nchar - 4), msg):
-        #         striped_line = line.strip()
-        #         # (striped_line.ljust(nchar - 4)
-        #         wrapped_lines.append("# %s  \n" % (striped_line))
-        #     return "".join(wrapped_lines)
-
-
         if 'debug' in flags and flags['debug'] != 0:
-            # print(f'{cmdItems[0]} ' + ' '.join(cmdItems[1:]))
-            print(cmdItems[0] + ' '.join(cmdItems[1:]))
+            print(cmd_items[0] + ' '.join(cmd_items[1:]))
             print("#" * 79)
-            # print("# Monte Carlo eXtreme (MCX) "
-            #       "- Copyright (c) 2009-2020 Qianqian Fang")
             i = 0
             output = ""
             for line in iter(proc.stdout.readline, ""):
                 output += line
-                if i > 1 and i < 10 :
+                if i > 1 and i < 10:
                     sys.stdout.write(line)
-                    # sys.stdout.write("# " + str.strip(line[1:-1]))
-                elif i > 14 and i !=20 and line not in ['\n', '\r\n']:
-                    # sys.stdout.write(wrap_text(line))
+                elif i > 14 and i != 20 and line not in ['\n', '\r\n']:
+                    # sys.stdout.write(self.wrap_text(line))
                     sys.stdout.write(line)
                 i += 1
             print("#" * 79)
@@ -682,14 +661,13 @@ class MCSession(object):
         # print(errors)
 
         # extract simulation statistics from output.
-        self.parseStats(output)
+        self.parse_stats(output)
 
         # retrieve results for fluence field and detected photons
-        self.loadResults()
+        self.load_results()
 
-
-    def setBoundary(self, specular=True, missmatch=True,
-                    bc="______000000", n0=1):
+    def set_boundary(self, specular=True, mismatch=True,
+                     bc="______000000", n0=1):
         """ Set the boundary conditions for the domain.
 
         Parameters
@@ -698,7 +676,7 @@ class MCSession(object):
             Enables or disables the specular reflection. By default, initial
             specular reflection is considered, thus, photon loses a small
             fraction of energy when entering the domain.
-        missmatch : bool, optional
+        mismatch : bool, optional
             Enable or disable reflections at the boundaries. By default, mcx
             considers refractive index mismatch at the boundaries and photons
             will be either reflected or transmitted at the boundaries based on
@@ -721,55 +699,53 @@ class MCSession(object):
             The background refractive index. Default is 1.
         """
         self.boundary['specular'] = specular
-        self.boundary['missmatch'] = missmatch
+        self.boundary['mismatch'] = mismatch
         self.boundary['bc'] = bc
         self.boundary['n0'] = n0
 
-
-    def setDetector(self, id, pos, radius, param1=None, param2=None):
+    def set_detector(self, det_id, pos, radius):
         """ Set or modifies the configuration of a detector.
 
         Parameters
         ----------
-        id : int
-            Identifiyer for detector.
+        det_id : int
+            Identifier for detector.
         pos : float
             The grid position of a detector, in grid unit.
         radius : float
             The grid position of a detector, in grid unit.
         """
-        name = "det%d" % id
+        name = "det%d" % det_id
         if name in self.detector.keys():
             self.detector[name]['pos'] = pos
             self.detector[name]['radius'] = radius
 
-
-    def setDomain(self, vol, originType=0, lengthUnit=1):
+    def set_domain(self, vol, origin_type=0, length_unit=1):
         """ Set the domain.
 
         Parameters
         ----------
-        vol : np.ndarray of uint8
+        vol : numpy.ndarray of uint8
             The domain volume. A tow-dimensional or three-dimensional array.
-        originType : int, optional
+        origin_type : int, optional
             Defines the coordinate origin mode of the volume. A value of 0
             assumes the lower-bottom corner of the first voxel as [1 1 1]. A
             value of 1 assumes the lower-bottom corner of the first voxel as
             [0 0 0]. Default is 0.
-        lengthUnit : float, optional
+        length_unit : float, optional
             Set the edge length, in mm, of a voxel in the volume. E.g. if the
             volume used in the simulation is 0.1x0.1x0.1 mm^3, then, one should
             use a value of 0.1. Default is 1.
         """
         # mcx requires elements of volume array as little-endian and in F-order
-        self.domain['vol'] = np.array(vol, dtype='<B', order='F')
-        self.domain['shape'] = self.domain['vol'].shape
-        self.domain['origin'] = originType
-        self.domain['scale'] = lengthUnit
-        self.dumpVolume()
+        vol = np.array(vol, dtype='<B', order='F')
+        self.domain['vol'] = vol
+        self.domain['shape'] = vol.shape
+        self.domain['origin'] = origin_type
+        self.domain['scale'] = length_unit
+        self.dump_volume()
 
-
-    def setForward(self, t0, t1, dt):
+    def set_forward(self, t0, t1, dt):
         """ Set the time domain properties.
 
         Parameters
@@ -786,8 +762,7 @@ class MCSession(object):
         self.forward['dt'] = dt
         self.forward['ntime'] = int((t1 - t0) // dt)
 
-
-    def setMaterial(self, tag, mua, mus, g, n):
+    def set_material(self, tag, mua, mus, g, n):
         """ Set or modifies material properties with a specific tag.
 
         Parameters
@@ -800,7 +775,7 @@ class MCSession(object):
         mus : float
             Scattering coefficient [1/mm].
         g : float
-            Anisothropy of scattering.
+            Anisotropy of scattering.
         n : float
             refractive index.
         """
@@ -811,8 +786,7 @@ class MCSession(object):
             self.material[name]['g'] = g
             self.material[name]['n'] = n
 
-
-    def setMissmatch(self, enable=1):
+    def set_mismatch(self, enable=1):
         """ Configures the reflections at the boundaries.
 
         Parameters
@@ -823,10 +797,10 @@ class MCSession(object):
             will be either reflected or transmitted at the boundaries based on
             the Fresnel's equation.
         """
-        self.boundary['missmatch'] = enable
+        self.boundary['mismatch'] = enable
 
-
-    def setOutput(self, type="X", normalize=True, mask="DSPMXVW", format="mc2"):
+    def set_output(self, type="X", normalize=True, mask="DSPMXVW",
+                   format="mc2"):
         """ Set the output properties of the simulation.
 
         Parameters
@@ -875,8 +849,7 @@ class MCSession(object):
         self.output['mask'] = mask.upper()
         self.output['format'] = format
 
-
-    def setSeed(self, seed):
+    def set_seed(self, seed):
         """ Set the seed of the CPU random number generator.
 
         Parameters
@@ -888,8 +861,7 @@ class MCSession(object):
         """
         self.seed = seed
 
-
-    def setSource(self, nphoton, pos, dir):
+    def set_source(self, nphoton, pos, dir):
         """ Set the photon source.
 
         Parameters
@@ -905,8 +877,7 @@ class MCSession(object):
         self.source['pos'] = pos
         self.source['dir'] = dir
 
-
-    def setSourceType(self, type, param1=None, param2=None, pattern=None):
+    def set_source_type(self, type, param1=None, param2=None, pattern=None):
         """ Set the photon source.
 
         Parameters
@@ -918,14 +889,15 @@ class MCSession(object):
             Source parameters, 4 floating-point numbers.
         param2 : list, ndarray
             Additional source parameters, 4 floating-point numbers.
+        pattern : list, ndarray
+            Additional pattern source parameters.
         """
         self.source['type'] = type
         self.source['param1'] = param1
         self.source['param2'] = param2
         self.source['pattern'] = pattern
 
-
-    def setSpecular(self, enable=1):
+    def set_specular(self, enable=1):
         """ Configures the specular reflection at the initial entry of
         the photons to the domain (entry from a 0-voxel to a non-zero voxel).
 
@@ -938,4 +910,28 @@ class MCSession(object):
         """
         self.boundary['specular'] = enable
 
+    @staticmethod
+    def wrap_text(string, nchar=79):
+        wrapped_lines = []
+        for line in re.findall(r".{1,%s}(?:\s+|$)" % (nchar - 4), string):
+            striped_line = line.strip()
+            # (striped_line.ljust(nchar - 4)
+            wrapped_lines.append("# %s  \n" % striped_line)
+        return "".join(wrapped_lines)
 
+
+def load_session(file_path):
+    """ Load a session from the json file.
+
+    Parameters
+    ----------
+    file_path : str, path
+        The path to the json file.
+    """
+    if not os.path.isfile(file_path):
+        return
+
+    workdir, file_name = os.path.split(file_path)
+    session_name, ext = file_name.rsplit('.', 1)
+
+    return MCSession(session_name, workdir, autoload=True)

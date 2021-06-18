@@ -42,24 +42,15 @@ def main():
     vol = np.ones((200, 200, 11))
     vol[..., 0] = 0
 
-    # configure and run simulation ............................................
-    session = MCSession("benchmark_1x", workdir=data_path, seed=29012392)
-    session.clear_files()
+    session = load_session(os.path.join(data_path, "benchmark_1x.json"))
 
-    session.set_domain(vol, origin_type=1, length_unit=0.02)
-    session.add_material(mua=1, mus=9, g=0.75, n=1)
-    session.add_material(mua=0, mus=0, g=1, n=1)
+    # return
+    #
+    # # load existing project by enabling autoload ..............................
+    # session = MCSession("benchmark_1x", workdir=data_path, autoload=True)
 
-    session.set_boundary(specular=True, mismatch=True, n0=1)
-    session.set_source(nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1])
-    session.set_source_type(type="pencil")
-    session.add_detector(pos=[50, 50, 0], radius=50)
 
-    session.set_output(type="E", normalize=True, mask="DSPMXVW")
-    session.dump_json()
-    session.dump_volume()
-
-    session.run(thread="auto", debug='P')
+    # return
 
     # post processing .........................................................
     data = session.fluence[..., 0]  # last index refers to time step
@@ -79,7 +70,6 @@ def main():
     print("\nDetected photons:")
     print(session.detectedPhotons)
 
-
     # plot slice of fluence data ..............................................
     dataSlice = data[:, :, 0]
     dataSlice = np.log10(np.abs(dataSlice))
@@ -92,22 +82,7 @@ def main():
     plt.show()
     plt.close()
 
-    # compare results with other session (python2 with python3 runs)
-    session1 = load_session(os.path.join(data_path, "benchmark_1x2.json"))
-    data1 = session1.fluence[..., 0]  # last index refers to time step
 
-    df = session.detectedPhotons.sort_values(
-        ["detectid", "nscatter_mat0", "nscatter_mat1", "ppathlen_mat0"])
-    df.reset_index(drop=True, inplace=True)
-    df1 = session1.detectedPhotons.sort_values(
-        ["detectid", "nscatter_mat0", "nscatter_mat1", "ppathlen_mat0"])
-    df1.reset_index(drop=True, inplace=True)
-
-    df = df - df1
-
-    print(np.max(np.abs(data1 - data)))
-    print(np.max(np.abs(data1)))
-    print(df.abs().max())
 
 
 

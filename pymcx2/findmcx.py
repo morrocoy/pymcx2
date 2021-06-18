@@ -1,7 +1,8 @@
 import sys
 import pathlib
 
-def findMCX():
+
+def find_mcx():
     for path in sys.path:
         glob_path = pathlib.Path(path)
         patterns = ["bin/mcx.exe", "mcx.exe", "bin/mcx", "mcx"]

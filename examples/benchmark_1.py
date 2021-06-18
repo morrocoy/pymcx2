@@ -31,7 +31,6 @@ from pymcx2 import MCSession
 
 
 data_path = os.path.join(os.getcwd(), "..", "model")
-pict_path = os.path.join(os.getcwd(), "..", "pictures")
 
 # define geometry .........................................................
 vol = np.ones((200, 200, 11))
@@ -40,18 +39,18 @@ vol[..., 0] = 0  # pad a layer of zeros to get diffuse reflectance
 # configure and run simulation ............................................
 session = MCSession('benchmark_1x', workdir=data_path, seed=29012392)
 
-session.setDomain(vol, originType=1, lengthUnit=0.02)
+session.set_domain(vol, origin_type=1, length_unit=0.02)
 
 # background material with tag 0 is predefined with mua=0, mus=0, g=1, n=1
-session.addMaterial(mua=1, mus=9, g=0.75, n=1)  # receives tag 1
-session.addMaterial(mua=0, mus=0, g=1, n=1)  # receives tag 2
+session.add_material(mua=1, mus=9, g=0.75, n=1)  # receives tag 1
+session.add_material(mua=0, mus=0, g=1, n=1)  # receives tag 2
 
-session.setBoundary(specular=True, missmatch=True, n0=1)
-session.setSource(nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1])
-session.setSourceType(type='pencil')
-session.addDetector(pos=[50, 50, 0], radius=50)  # optional detector
+session.set_boundary(specular=True, mismatch=True, n0=1)
+session.set_source(nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1])
+session.set_source_type(type='pencil')
+session.add_detector(pos=[50, 50, 0], radius=50)  # optional detector
 
-session.setOutput(type="E", normalize=True, mask="DSPMXVW")
+session.set_output(type="E", normalize=True, mask="DSPMXVW")
 # session.dumpJSON()
 # session.dumpVolume()
 
@@ -85,11 +84,6 @@ print("\nDetected photons:")
 print(session.detectedPhotons)
 
 
-session2 = MCSession('benchmark_1x2', workdir=data_path, keepFiles=True)
-data2 = session2.fluence[..., 0]
-
-
-print(np.max(np.abs(data-data2)))
 
 # plot slice of fluence data ..............................................
 dataSlice = data[:, :, 0]

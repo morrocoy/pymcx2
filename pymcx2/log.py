@@ -16,13 +16,13 @@ class LogManager(object):
         """ Constructor. """
         self.level = logging.WARNING
 
-        self.consoleHandler = logging.StreamHandler()
-        self.consoleHandler.setLevel(self.level)
+        self.console_handler = logging.StreamHandler()
+        self.console_handler.setLevel(self.level)
 
         self.formatter = logging.Formatter(
             "%(asctime)s %(filename)35s: %(lineno)-4d: %(funcName)20s(): " \
             "%(levelname)-7s: %(message)s")
-        self.consoleHandler.setFormatter(self.formatter)
+        self.console_handler.setFormatter(self.formatter)
 
         self.loggers = {}
 
@@ -31,7 +31,7 @@ class LogManager(object):
         """
         log = logging.getLogger(module_name)
         log.setLevel(self.level)
-        log.addHandler(self.consoleHandler)
+        log.addHandler(self.console_handler)
         self.loggers[module_name] = log
         return log
 
@@ -39,7 +39,7 @@ class LogManager(object):
         """ Set the log level for all loggers that have been created.
         """
         self.level = level
-        self.consoleHandler.setLevel(level)
+        self.console_handler.setLevel(level)
         for log in self.loggers.values():
             log.setLevel(level)
 

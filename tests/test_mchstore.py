@@ -15,17 +15,15 @@ import matplotlib.pyplot as plt
 
 import logging
 
-import utils
-from pymcx2 import loadmch, loadmc2
+import test_utils
+from pymcx2 import load_mch, load_mc2
 from pymcx2.log import logmanager
 
 logger = logmanager.getLogger(__name__)
 
 
 def main():
-    # data_path = os.path.join(os.getcwd(), "..", "data")
     data_path = os.path.join(os.getcwd(), "..", "model")
-    pict_path = os.path.join(os.getcwd(), "..", "pictures")
 
     # load configuration ......................................................
     session = "benchmark_1"
@@ -56,7 +54,7 @@ def main():
     filePath = os.path.join(data_path, session + ".mch")
 
     # mchstore = MCHStore.read(filePath)
-    mchstore = loadmch(filePath)
+    mchstore = load_mch(filePath)
 
     print("\nMetadata of mch file")
     print("-----------------------------------------------")
@@ -83,17 +81,17 @@ def main():
     print(mchstore["ppathlen"])
     # print(mchstore['nscatter'])
 
-    df = mchstore.asDataFrame()
+    df = mchstore.as_dataframe()
     print(df)
 
-    data2 = utils.loadmch(filePath)
+    data2 = test_utils.loadmch(filePath)
     print(data2[0].shape)
 
     # load results of mc2 file ................................................
     filePath = os.path.join(data_path, session + ".mc2")
 
     # mc2store = MC2Store.read(filePath, meshShape)
-    mc2store = loadmc2(filePath, meshShape)
+    mc2store = load_mc2(filePath, meshShape)
 
     print("\nMetadata of mc2 file")
     print("-----------------------------------------------")

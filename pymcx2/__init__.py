@@ -8,12 +8,12 @@ from __future__ import absolute_import
 from .version import __version_info__, __version__
 
 # Export public objects
-from .findmcx import findMCX
+from .findmcx import find_mcx
 from .mchchunk import MCHFileChunk
-from .mchstore import MCHStore, loadmch
-from .mc2store import MC2Store, loadmc2
-from .mcsession import MCSession
+from .mchstore import MCHStore, load_mch
+from .mc2store import MC2Store, load_mc2
+from .mcsession import MCSession, load_session
 
 
-if findMCX() is None:
+if find_mcx() is None:
     print("Warning: Could not find path to mcx binary.")

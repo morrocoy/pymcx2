@@ -36,10 +36,9 @@ sys.path.append(os.path.abspath(mcx))
 from pymcx2 import MCSession
 
 data_path = os.path.join(os.getcwd(), "..", "model")
-pict_path = os.path.join(os.getcwd(), "..", "pictures")
 
 wavelen = np.linspace(500, 1000, 100, endpoint=False)
-# wavelen = np.linspace(500, 1000, 2, endpoint=False)
+wavelen = np.linspace(500, 1000, 2, endpoint=False)
 
 # tissue layers ..............................................................
 p1 = {
@@ -70,7 +69,7 @@ layer1 = HSTissueCompound(portions=p1, skintype='epidermis', wavelen=wavelen)
 layer2 = HSTissueCompound(portions=p2, skintype='dermis', wavelen=wavelen)
 
 # define geometry ............................................................
-plate_size = 1000
+plate_size = 100
 vol = np.zeros((plate_size, plate_size, 202))
 vol[..., 0] = 0  # pad a layer of zeros to get diffuse reflectance
 vol[..., 1:2] = 1  # first layer with material tag 1
@@ -80,27 +79,27 @@ vol[..., 2:] = 2  # second layer with material tag 2
 session = MCSession('benchmark_4x', workdir=data_path, seed=29012392)
 # session = MCSession('benchmark_4x', workdir=data_path, seed=-1)
 
-session.setDomain(vol, originType=1, lengthUnit=0.1)
+session.set_domain(vol, origin_type=1, length_unit=0.1)
 
 # dummy materials for each layer to be overwritten
 # background material with tag 0 is predefined with mua=0, mus=0, g=1, n=1
-session.addMaterial(mua=0, mus=0, g=1, n=1)  # receives tag 1
-session.addMaterial(mua=0, mus=0, g=1, n=1)  # receives tag 2
+session.add_material(mua=0, mus=0, g=1, n=1)  # receives tag 1
+session.add_material(mua=0, mus=0, g=1, n=1)  # receives tag 2
 
 # time-domain simulation parameters
-session.setForward(0, 1e-5, 1e-5)
+session.set_forward(0, 1e-5, 1e-5)
 
 # boundary conditions
-session.setBoundary(specular=True, missmatch=True, n0=1)
-session.setSource(
-    nphoton=100e6, pos=[plate_size // 2, plate_size // 2, 0], dir=[0, 0, 1])
-session.setSourceType(type='pencil')
+session.set_boundary(specular=True, mismatch=True, n0=1)
+session.set_source(
+    nphoton=1e6, pos=[plate_size // 2, plate_size // 2, 0], dir=[0, 0, 1])
+session.set_source_type(type='pencil')
 # optional detector
 # session.addDetector(
 #     pos=[plate_size // 2, plate_size // 2, 0], radius=50)
 
 # output settings
-session.setOutput(type="E", normalize=True, mask="DSPMXVW")
+session.set_output(type="E", normalize=True, mask="DSPMXVW")
 
 n = len(wavelen[:])
 # n=1
@@ -111,7 +110,7 @@ for i in range(n):
     print("Process wavelength: %d nm ... " % wavelen[i])#, end='')
 
     # overwrite material information of first layer
-    session.setMaterial(
+    session.set_material(
         tag=1,
         mua=layer1.absorption[i] / 10,  # 1/cm -> 1/mm
         mus=layer1.scattering[i] / 10,  # 1/cm -> 1/mm
@@ -120,7 +119,7 @@ for i in range(n):
     )
 
     # overwrite material information of second layer
-    session.setMaterial(
+    session.set_material(
         tag=2,
         mua=layer2.absorption[i] / 10,  # 1/cm -> 1/mm
         mus=layer2.scattering[i] / 10,  # 1/cm -> 1/mm
@@ -175,7 +174,7 @@ df = pd.DataFrame(
     data, columns=["wavelen", "specular", "diffuse", "absorbed", "transmitted"])
 
 print(df)
-df.to_excel(os.path.join(data_path, "output.xlsx"))
+df.to_excel(os.path.join(data_path, "output.xls"))
 
 
 

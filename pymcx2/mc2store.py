@@ -7,15 +7,14 @@ Created on Tue Mar 16 11:35:26 2021
 """
 import os.path
 import numpy as np
+import pandas as pd
 
 from .log import logmanager
 
 logger = logmanager.getLogger(__name__)
 
 
-__all__ = ["MC2Store", "loadmc2"]
-
-
+__all__ = ["MC2Store", "load_mc2"]
 
 
 class MC2Store(object):
@@ -73,7 +72,7 @@ class MC2Store(object):
         # mc2 file already open
         if hasattr(fname, "read") and hasattr(fname, "mode"):
             file = fname
-            if file.mode in ('rb'):
+            if file.mode == 'rb':
                 self.file = file
                 self.mode = file.mode
                 self.owner = False  # no ownership of the underlying file
@@ -83,7 +82,7 @@ class MC2Store(object):
 
         # open mc2 file
         elif os.path.isfile(str(fname)):
-            if mode in ('rb'):
+            if mode == 'rb':
                 logger.debug("Open file object {}.".format(fname))
                 self.file = open(fname, mode)
                 self.mode = mode
@@ -92,16 +91,13 @@ class MC2Store(object):
                 raise ValueError(
                     "Unsupported mode to open file: {}.".format(mode))
 
-
     def __enter__(self):
         logger.debug("MC2Store object __enter__().")
         return self
 
-
     def __exit__(self, exception_type, exception_value, traceback):
         logger.debug("MC2Store object __exit__().")
         self.close()
-
 
     def __getitem__(self, index):
         """ Retrieve a mc2 group by name. """
@@ -110,27 +106,26 @@ class MC2Store(object):
         else:
             return None
 
-
     def __len__(self):
         """ Returns the number of temporal points. """
         return self.ntime
 
-
-    def _ensureFileOpen(self):
+    def _ensure_file_open(self):
         if self.file is None:
             raise RuntimeError(
                 "Cannot read data after the underlying mc2 file is closed")
 
-
-    def asarray(self):
+    def as_array(self):
         """ Return the entire data array. """
         return self.data
 
+    def as_dataframe(self):
+        """ Creates a dataframe from the data of the mc2 file.
 
-    def asdataframe(self):
-        """ Creates a dataframe from the data of the mc2 file. """
-        return 0
-
+        TODO: add header to the dataframe
+        """
+        df = pd.DataFrame(self.data)
+        return df
 
     def close(self):
         """ Close the underlying mc2 file if it was opened."""
@@ -138,8 +133,7 @@ class MC2Store(object):
             logger.debug("Close file object.")
             self.file.close()
 
-
-    def loadData(self, shape):
+    def load_data(self, shape):
         """ Read all data from the mc2 file and store them internally.
 
         Parameters
@@ -147,23 +141,25 @@ class MC2Store(object):
         shape : tuple or list of int,
             A tuple or list to specify the data dimension (nx, ny, nz, ntime).
         """
-        self.data = self.readData(shape)
+        self.data = self.read_data(shape)
 
-
-    def readData(self, shape, order='F'):
+    def read_data(self, shape, order='F'):
         """ Load the data of all chunks in the mc2 file.
 
         Parameters
         ----------
         shape : tuple or list of int,
             A tuple or list to specify the data dimension (nx, ny, nz, ntime).
+        order : {'C', 'F', 'A'}, optional
+            Read the elements of the file using this index order and place the
+            elements into the reshaped array using this index order
 
         Returns
         -------
         data: np.ndarray
-            Fluence data stored in the mc2 file with the specified dimensions.
+            Flux data stored in the mc2 file with the specified dimensions.
         """
-        self._ensureFileOpen()
+        self._ensure_file_open()
         self.file.seek(0)
 
         if not isinstance(shape, (tuple, list)) or len(shape) != 4:
@@ -179,45 +175,39 @@ class MC2Store(object):
             logger.debug("Cannot align data to the provided shape")
             return None
 
-
     @property
     def nx(self):
         """ int: The number of point in x direction."""
         return self.data.shape[0] if self.data is not None else None
-
 
     @property
     def ny(self):
         """ int: The number of point in y direction."""
         return self.data.shape[1] if self.data is not None else None
 
-
     @property
     def nz(self):
         """ int: The number of point in z direction."""
         return self.data.shape[2] if self.data is not None else None
-
 
     @property
     def ntime(self):
         """ int: The number of temporal points."""
         return self.data.shape[3] if self.data is not None else None
 
-
     @property
     def shape(self):
         """ int: The number of point in x direction."""
         return self.data.shape if self.data is not None else tuple([])
 
-
     @staticmethod
-    def open(filePath, mode='rb', dtype='<f'):
+    def open(file_path, mode='rb', dtype='<f'):
         """ Creates a new mc2 File object and reads metadata, leaving the file
         open to allow reading data chunks
 
         Parameters
         ----------
-        filePath : str
+        file_path : str
             The path to the mc2 file to read as a string or pathlib.Path.
         mode : str, optional
             The mode in which the file is opened. Default is "rb".
@@ -225,16 +215,15 @@ class MC2Store(object):
             The type of the statistical data stored in the file. Default is
             float with little endianness.
         """
-        return MC2Store(filePath, mode=mode, dtype=dtype)
-
+        return MC2Store(file_path, mode=mode, dtype=dtype)
 
     @staticmethod
-    def read(filePath, shape, dtype="<f"):
+    def read(file_path, shape, dtype="<f"):
         """ Creates a new mc2 store object and reads all data from the file in.
 
         Parameters
         ----------
-        filePath : str
+        file_path : str
             The path to the mc2 file to read as a string or pathlib.Path.
         shape : tuple or list of int,
             A tuple or list to specify the data dimension (nx, ny, nz, ntime).
@@ -242,20 +231,22 @@ class MC2Store(object):
             The type of the statistical data stored in the file. Default is
             float with little endianness.
         """
+        store = None
         try:
-            store = MC2Store.open(filePath, mode='rb', dtype=dtype)
-            store.loadData(shape)  # load data from each chunk
+            store = MC2Store.open(file_path, mode='rb', dtype=dtype)
+            store.load_data(shape)  # load data from each chunk
         finally:
-            store.close()  # close underlying file
+            if isinstance(store, MC2Store):
+                store.close()  # close underlying file
         return store
 
 
-def loadmc2(filePath, shape, dtype='<f'):
+def load_mc2(file_path, shape, dtype='<f'):
     """ Loads an mc2 file into a new MC2Store object.
 
     Parameters
     ----------
-    filePath : str
+    file_path : str
         The path to the mc2 file to read as a string or pathlib.Path.
     shape : tuple or list of int,
             A tuple or list to specify the data dimension (nx, ny, nz, ntime).
@@ -268,8 +259,7 @@ def loadmc2(filePath, shape, dtype='<f'):
     store : :class:`MC2Store<pymcx2.MC2Store`
         A store object holding all date from the file.
     """
-    with open(filePath, 'rb') as file:
+    with open(file_path, 'rb') as file:
         store = MC2Store(file, dtype=dtype)
-        store.loadData(shape)  # load data from each chunk
+        store.load_data(shape)  # load data from each chunk
     return store
-

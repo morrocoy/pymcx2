@@ -8,9 +8,9 @@ paths and provides a warning if not available
 
 @author: kpapke
 """
-from pymcx2 import findMCX
+from pymcx2 import find_mcx
 
-mcx_path = findMCX()
+mcx_path = find_mcx()
 
 
 
