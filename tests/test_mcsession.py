@@ -77,7 +77,7 @@ def main():
     print("Total transmittance: %f" % transmitted)
 
     print("\nDetected photons:")
-    print(session.detectedPhotons)
+    print(session.detected_photons)
 
 
     # plot slice of fluence data ..............................................
@@ -96,10 +96,10 @@ def main():
     session1 = load_session(os.path.join(data_path, "benchmark_1x2.json"))
     data1 = session1.fluence[..., 0]  # last index refers to time step
 
-    df = session.detectedPhotons.sort_values(
+    df = session.detected_photons.sort_values(
         ["detectid", "nscatter_mat0", "nscatter_mat1", "ppathlen_mat0"])
     df.reset_index(drop=True, inplace=True)
-    df1 = session1.detectedPhotons.sort_values(
+    df1 = session1.detected_photons.sort_values(
         ["detectid", "nscatter_mat0", "nscatter_mat1", "ppathlen_mat0"])
     df1.reset_index(drop=True, inplace=True)
 

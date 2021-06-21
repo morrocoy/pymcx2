@@ -81,7 +81,7 @@ for key, value in session.stat.items():
 # print(session.stat["energyabs"] / session.stat["energytot"])
 
 print("\nDetected photons:")
-print(session.detectedPhotons)
+print(session.detected_photons)
 
 
 

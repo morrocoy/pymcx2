@@ -116,7 +116,7 @@ class MCSession(object):
 
         # result stores
         self.fluence = None  # four-dimensional numpy array (nx, ny, nz, ntime)
-        self.detectedPhotons = None  # pandas dataframe
+        self.detected_photons = None  # pandas dataframe
 
         # simulation statistics
         self.stat = ordered_dict({
@@ -374,13 +374,16 @@ class MCSession(object):
 
         # get material configuration
         media = domain.get('Media', None)
-        if not isinstance(media, list) or any([
-            any([sub_entry not in entry
-                 for sub_entry in ["mua", "mus", "g", "n"]])
-            for entry in media]):
-            logger.debug("Invalid configuration found for the media "
+        if not isinstance(media, list):
+            logger.debug("Invalid configuration found for the material "
                          "settings in %s." % file_path)
             return
+
+        for i, mat in enumerate(media):
+            if any([entry not in mat for entry in ["mua", "mus", "g", "n"]]):
+                logger.debug("Invalid configuration found for material "
+                             "{}: {} in {}".format(i, mat, file_path))
+                return
 
         # apply session configuration
         self.name = session.get('ID')
@@ -488,10 +491,10 @@ class MCSession(object):
         if os.path.isfile(file_path):
             logger.debug("Reading file {}.".format(file_path))
             store = load_mch(file_path)
-            self.detectedPhotons = store.as_dataframe()  # pandas dataframe
+            self.detected_photons = store.as_dataframe()  # pandas dataframe
         else:
             logger.debug("File {} not found.".format(file_path))
-            self.detectedPhotons = None
+            self.detected_photons = None
 
     def load_volume(self, file_path, shape):
         """ Load a volume from an external file.
@@ -649,8 +652,7 @@ class MCSession(object):
                 if i > 1 and i < 10:
                     sys.stdout.write(line)
                 elif i > 14 and i != 20 and line not in ['\n', '\r\n']:
-                    # sys.stdout.write(self.wrap_text(line))
-                    sys.stdout.write(line)
+                    sys.stdout.write(self.wrap_text(line))
                 i += 1
             print("#" * 79)
             (_, errors) = proc.communicate()
@@ -914,9 +916,8 @@ class MCSession(object):
     def wrap_text(string, nchar=79):
         wrapped_lines = []
         for line in re.findall(r".{1,%s}(?:\s+|$)" % (nchar - 4), string):
-            striped_line = line.strip()
-            # (striped_line.ljust(nchar - 4)
-            wrapped_lines.append("# %s  \n" % striped_line)
+            striped_line = line.replace('\t', ' ').strip()
+            wrapped_lines.append("# %-75s #\n" % striped_line)
         return "".join(wrapped_lines)
 
 

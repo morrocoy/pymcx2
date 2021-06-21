@@ -70,7 +70,7 @@ print("Specular reflectance: %f" % specrefl)
 print("Total transmittance: %f" % transmitted)
 
 print("\nDetected photons:")
-print(session.detectedPhotons)
+print(session.detected_photons)
 
 # plot slice of fluence data ..............................................
 dataSlice = data[:, :, 0]
