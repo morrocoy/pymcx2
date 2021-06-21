@@ -83,6 +83,12 @@ for key, value in session.stat.items():
 print("\nDetected photons:")
 print(session.detected_photons)
 
+dp = session.detected_photons
+scale = session.domain["scale"]
+for mat in session.material.values():
+    if mat["tag"] != 0:
+        dp["weight"] = dp.apply(lambda dp: dp["weight"] * np.exp(
+            -mat["mua"] * scale * dp["ppathlen_mat%d" % (mat["tag"])]), axis=1)
 
 
 # plot slice of fluence data ..............................................

@@ -244,7 +244,7 @@ class MCHFileChunk(object):
             if self.flags[key]:
                 if "mat" in self._cols[key][0]:
                     self.cols[key] = [
-                        "%s%d" % (self._cols[key][0], i) for i in range(nmat)]
+                        "%s%d" % (self._cols[key][0], i+1) for i in range(nmat)]
                 else:
                     self.cols[key] = self._cols[key]
 
