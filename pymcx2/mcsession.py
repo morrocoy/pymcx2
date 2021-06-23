@@ -152,7 +152,7 @@ class MCSession(object):
 
         Parameters
         ----------
-        pos : float
+        pos : list of float
             The grid position of a detector, in grid unit.
         radius : float
             The grid position of a detector, in grid unit.
@@ -396,8 +396,8 @@ class MCSession(object):
         domain = cfg.get('Domain', None)
         self.domain['vol'] = None  # set empty domain filled with zeros
         self.domain['shape'] = domain.get('Dim')
-        self.domain['origin'] = cfg.get('OriginType', 0)
-        self.domain['scale'] = cfg.get('LengthUnit', 1.)
+        self.domain['origin'] = domain.get('OriginType', 0)
+        self.domain['scale'] = domain.get('LengthUnit', 1.)
         logger.debug("Load domain settings: {}.".format(self.domain))
 
         # apply material configuration
@@ -586,7 +586,7 @@ class MCSession(object):
         ----------
         thread : str or int, optional
             The number of total threads. Default is auto.
-        **flags : dict
+        **flags
             Additional flags with the prepended '-' or '--' being skipped.
             See mcx help for more information.
         """
@@ -722,19 +722,19 @@ class MCSession(object):
             self.detector[name]['pos'] = pos
             self.detector[name]['radius'] = radius
 
-    def set_domain(self, vol, origin_type=0, length_unit=1):
+    def set_domain(self, vol, origin_type=0, scale=1):
         """ Set the domain.
 
         Parameters
         ----------
-        vol : numpy.ndarray of uint8
+        vol : np.ndarray of uint8
             The domain volume. A tow-dimensional or three-dimensional array.
         origin_type : int, optional
             Defines the coordinate origin mode of the volume. A value of 0
             assumes the lower-bottom corner of the first voxel as [1 1 1]. A
             value of 1 assumes the lower-bottom corner of the first voxel as
             [0 0 0]. Default is 0.
-        length_unit : float, optional
+        scale : float, optional
             Set the edge length, in mm, of a voxel in the volume. E.g. if the
             volume used in the simulation is 0.1x0.1x0.1 mm^3, then, one should
             use a value of 0.1. Default is 1.
@@ -744,7 +744,7 @@ class MCSession(object):
         self.domain['vol'] = vol
         self.domain['shape'] = vol.shape
         self.domain['origin'] = origin_type
-        self.domain['scale'] = length_unit
+        self.domain['scale'] = scale
         self.dump_volume()
 
     def set_forward(self, t0, t1, dt):

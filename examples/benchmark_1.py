@@ -39,14 +39,14 @@ vol[..., 0] = 0  # pad a layer of zeros to get diffuse reflectance
 # configure and run simulation ............................................
 session = MCSession('benchmark_1x', workdir=data_path, seed=29012392)
 
-session.set_domain(vol, origin_type=1, length_unit=0.02)
+session.set_domain(vol, origin_type=1, scale=0.02)
 
 # background material with tag 0 is predefined with mua=0, mus=0, g=1, n=1
 session.add_material(mua=1, mus=9, g=0.75, n=1)  # receives tag 1
 session.add_material(mua=0, mus=0, g=1, n=1)  # receives tag 2
 
 session.set_boundary(specular=True, mismatch=True, n0=1)
-session.set_source(nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1])
+session.set_source(nphoton=500000, pos=[100, 100, 0], dir=[0, 0, 1])
 session.set_source_type(type='pencil')
 session.add_detector(pos=[50, 50, 0], radius=50)  # optional detector
 
@@ -54,7 +54,7 @@ session.set_output(type="E", normalize=True, mask="DSPMXVW")
 # session.dumpJSON()
 # session.dumpVolume()
 
-session.run(thread='auto', debug='P')#, blocksize=64)
+session.run(thread='auto', debug='P')  # blocksize=64
 
 # post processing .........................................................
 data = session.fluence[..., 0]  # last index refers to time step
@@ -90,18 +90,14 @@ for mat in session.material.values():
         dp["weight"] = dp.apply(lambda dp: dp["weight"] * np.exp(
             -mat["mua"] * scale * dp["ppathlen_mat%d" % (mat["tag"])]), axis=1)
 
-
 # plot slice of fluence data ..............................................
-dataSlice = data[:, :, 0]
-dataSlice = np.log10(np.abs(dataSlice))
+data_slice = data[:, :, 0]
+data_slice = np.log10(np.abs(data_slice))
 
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1)
-pos = plt.imshow(dataSlice, vmin=-10, vmax=-2, cmap='jet')
+pos = plt.imshow(data_slice, vmin=-10, vmax=-2, cmap='jet')
 # pos = ax.contourf(dataSlice, levels=np.arange(-10, -1, 1), cmap='jet')
 fig.colorbar(pos, ax=ax)
 plt.show()
 plt.close()
-
-
-

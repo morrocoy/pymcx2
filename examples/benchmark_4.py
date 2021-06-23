@@ -13,7 +13,6 @@ import os.path
 from timeit import default_timer as timer
 
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 
 from hsi import HSTissueCompound
@@ -37,7 +36,7 @@ from pymcx2 import MCSession
 
 data_path = os.path.join(os.getcwd(), "..", "model")
 
-wavelen = np.linspace(500, 1000, 100, endpoint=False)
+# wavelen = np.linspace(500, 1000, 100, endpoint=False)
 wavelen = np.linspace(500, 1000, 2, endpoint=False)
 
 # tissue layers ..............................................................
@@ -79,7 +78,7 @@ vol[..., 2:] = 2  # second layer with material tag 2
 session = MCSession('benchmark_4x', workdir=data_path, seed=29012392)
 # session = MCSession('benchmark_4x', workdir=data_path, seed=-1)
 
-session.set_domain(vol, origin_type=1, length_unit=0.1)
+session.set_domain(vol, origin_type=1, scale=0.1)
 
 # dummy materials for each layer to be overwritten
 # background material with tag 0 is predefined with mua=0, mus=0, g=1, n=1
@@ -92,7 +91,7 @@ session.set_forward(0, 1e-5, 1e-5)
 # boundary conditions
 session.set_boundary(specular=True, mismatch=True, n0=1)
 session.set_source(
-    nphoton=1e6, pos=[plate_size // 2, plate_size // 2, 0], dir=[0, 0, 1])
+    nphoton=1000000, pos=[plate_size // 2, plate_size // 2, 0], dir=[0, 0, 1])
 session.set_source_type(type='pencil')
 # optional detector
 # session.addDetector(
@@ -107,7 +106,7 @@ data = np.zeros((n, 5))
 # for i in [0,12]:#range(1):
 for i in range(n):
     start = timer()
-    print("Process wavelength: %d nm ... " % wavelen[i])#, end='')
+    print("Process wavelength: %d nm ... " % wavelen[i])
 
     # overwrite material information of first layer
     session.set_material(
@@ -175,6 +174,3 @@ df = pd.DataFrame(
 
 print(df)
 df.to_excel(os.path.join(data_path, "output.xls"))
-
-
-

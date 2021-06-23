@@ -45,9 +45,9 @@ dp = session.detected_photons
 Apart from the index, the dataframe generally provides the following fields with 
 the corresponding number of columns in brackets: 
 * `detectid` - The detector ID (1).
-* `nscatter_mat{0, ..., N-1}` - The partial scattering event counts (No. of materials `N`).
-* `ppathlen_mat{0, ..., N-1}` - The partial path-lengths (No. of materials `N`).
-* `momentum_mat{0, ..., N-1}` - The momentum transfer (No. of materials `N`).
+* `nscatter_mat{1, ..., N}` - The partial scattering event counts (No. of materials `N`).
+* `ppathlen_mat{1, ..., N}` - The partial path-lengths (No. of materials `N`).
+* `momentum_mat{1, ..., N}` - The momentum transfer (No. of materials `N`).
 * `pos_exit_{x, y, z}` - The exit position (3).
 * `dir_exit_{x, y, z}` - The exit direction (3).
 * `weight` - The initial photon weight (1).
@@ -57,7 +57,7 @@ for further details on the different fields.
 A simulation involving two different materials and a detector may provide a 
 dataframe according to the following structure: 
 
-| Index | detectid  | nscatter_mat0 | nscatter_mat1 | ppathlen_mat0 | ppathlen_mat1 | momentum_mat0 | momentum_mat1 | pos_exit_x | pos_exit_y | pos_exit_z | dir_exit_x | dir_exit_y | dir_exit_z | weight |
+| Index | detectid  | nscatter_mat1 | nscatter_mat2 | ppathlen_mat1 | ppathlen_mat2 | momentum_mat1 | momentum_mat2 | pos_exit_x | pos_exit_y | pos_exit_z | dir_exit_x | dir_exit_y | dir_exit_z | weight |
 | :---: | :-------: | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: | :--------: | :--------: | :--------: | :--------: | :--------: | :--------: | :----: |
 | 0 | 1.0 | 6.0 | 0.0 | 30.526659 | 0.0 | 1.4141142 | 0.0 | 94.63195 | 72.35736 | 0.99993896 | -0.39827162 | -0.6059654 | -0.6886109 | 1.0 |
 | 1 | 1.0 | 3.0 | 0.0 | 28.041206 | 0.0 | 0.5588621 | 0.0 | 79.318085 | 87.4064 | 11.000061 | -0.8471075 | -0.4603843 | 0.2654321 | 1.0 |
@@ -78,7 +78,9 @@ for mat in session.material.values():
         dp["weight"] = dp.apply(lambda dp: dp["weight"] * np.exp(
             -mat["mua"] * scale * dp["ppathlen_mat%d" % (mat["tag"])]), axis=1)
 ```
-It corresponds to the matlab function in `mcxdetweight.m` provided by MCX.
+It corresponds to the matlab function in `mcxdetweight.m` provided by MCX. It 
+is important to note that the background material with the tag 0 must be
+excluded here.
 
 ## Links
 - [Monte Carlo eXtreme (MCX) - CUDA Edition](https://github.com/fangq/mcx).

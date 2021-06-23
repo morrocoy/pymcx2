@@ -43,7 +43,7 @@ vol[..., 51:] = 3  # third layer with material tag 3
 # configure and run simulation ............................................
 session = MCSession('benchmark_3x', workdir=data_path, seed=29012392)
 
-session.set_domain(vol, origin_type=1, length_unit=0.04)
+session.set_domain(vol, origin_type=1, scale=0.04)
 
 # background material with tag 0 is predefined with mua=0, mus=0, g=1, n=1
 session.add_material(mua=0.1, mus=10, g=0.9, n=1.37)  # receives tag 1
@@ -53,7 +53,7 @@ session.add_material(mua=0.2, mus=1, g=0.7, n=1.37)  # receives tag 3
 session.set_material(tag=0, mua=0, mus=0, g=0, n=1)
 
 session.set_boundary(specular=True, mismatch=True, n0=1)
-session.set_source(nphoton=1e5, pos=[400, 400, 0], dir=[0, 0, 1])
+session.set_source(nphoton=100000, pos=[400, 400, 0], dir=[0, 0, 1])
 session.set_source_type(type='pencil')
 session.add_detector(pos=[50, 50, 0], radius=50)  # optional detector
 
@@ -82,18 +82,15 @@ print("\nDetected photons:")
 print(session.detected_photons)
 
 # plot slice of fluence data ..............................................
-dataSlice = data[:, :, 0]
-dataSlice = np.log10(np.abs(dataSlice))
+data_slice = data[:, :, 0]
+data_slice = np.log10(np.abs(data_slice))
 
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1)
-pos = plt.imshow(dataSlice, vmin=-10, vmax=-2, cmap='jet')
+pos = plt.imshow(data_slice, vmin=-10, vmax=-2, cmap='jet')
 # pos = ax.contourf(dataSlice, levels=np.arange(-10, -1, 1), cmap='jet')
 fig.colorbar(pos, ax=ax)
 ax.set_xlim([300, 500])
 ax.set_ylim([300, 500])
 plt.show()
 plt.close()
-
-
-
