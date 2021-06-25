@@ -868,14 +868,14 @@ class MCSession(object):
 
         Parameters
         ----------
-        nphoton : int
+        nphoton : int, float
             The total number of photons to be simulated.
         pos : list, ndarray
             The grid position of a source, can be non-integers, in grid unit.
         dir : list, ndarray
             The unitary directional vector of the photon at launch.
         """
-        self.source['nphoton'] = nphoton
+        self.source['nphoton'] = int(nphoton)
         self.source['pos'] = pos
         self.source['dir'] = dir
 

@@ -15,7 +15,7 @@ from timeit import default_timer as timer
 import numpy as np
 import pandas as pd
 
-from hsi import HSTissueCompound
+from hsi.tissue import HSTissueCompound
 
 # add path to make mcx visible
 # alternatively add the path via spyder's python path manager
