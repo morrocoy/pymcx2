@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from .log import logmanager
-from .mchchunk import MCHFileChunk
+from .mch_chunk import MCHFileChunk
 
 
 logger = logmanager.getLogger(__name__)

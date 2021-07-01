@@ -15,9 +15,9 @@ import numpy as np
 import json
 
 from .bindings import ordered_dict
-from .findmcx import find_mcx
-from .mc2store import load_mc2
-from .mchstore import load_mch
+from .find_mcx import find_mcx
+from .mc2_store import load_mc2
+from .mch_store import load_mch
 
 from .log import logmanager
 # from tempfile import NamedTemporaryFile
@@ -105,7 +105,7 @@ class MCSession(object):
 
         # source settings
         self.source = ordered_dict({
-            'nphoton': 1e3,  # total number of photons to be simulated
+            'nphoton': 1000,  # total number of photons to be simulated
             'pos': [0, 0, 0],  # grid position of a source in grid unit
             'dir': [0, 0, 1],  # directional vector of the photon at launch
             'type': 'pencil',  # source type (pencil, isotropic, cone, ...)
