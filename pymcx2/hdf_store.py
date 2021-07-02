@@ -19,10 +19,10 @@ from .log import logmanager
 
 logger = logmanager.getLogger(__name__)
 
-__all__ = ["MCStore"]
+__all__ = ["HDFStore"]
 
 
-class MCStore:
+class HDFStore:
     """ A dictionary-like IO interface for storing datasets in HDF5 files.
 
     It makes extensive use of pytables (https://www.pytables.org/).
@@ -64,7 +64,7 @@ class MCStore:
 
         import numpy as np
         import tables
-        from pymcx2 import MCStore
+        from pymcx2 import HDFStore
 
         # define columns for the table
         DetectedPhotonInfo = numpy.dtype([
@@ -81,7 +81,7 @@ class MCStore:
             (1, b"det2", 51, 56.4)], dtype=DetectedPhotonInfo)
 
         # open a file in "w"rite mode
-        with MCStore.open("test.h5", mode="w", path="/records") as store:
+        with HDFStore.open("test.h5", mode="w", path="/records") as store:
 
             # create table in hdf5 file in group /records
             table = store.create_table(
@@ -118,7 +118,7 @@ class MCStore:
 
         import numpy as np
         import tables
-        from pymcx2 import MCStore
+        from pymcx2 import HDFStore
         import multiprocessing
 
         # analysis function takes the selected entries of the attached tables
@@ -141,8 +141,8 @@ class MCStore:
         if __name__ == '__main__':
             # open an hdf5 file in "r+" mode
             with tables.open_file("test.h5", "r+") as file:
-                reader = MCStore(file, path="/records")
-                writer = MCStore(file, path="/records")
+                reader = HDFStore(file, path="/records")
+                writer = HDFStore(file, path="/records")
 
                 # attach table for reading
                 reader.attache_table("detected_photons")
@@ -237,11 +237,11 @@ class MCStore:
                 node._v_attrs.descr = descr
 
     def __enter__(self):
-        logger.debug("MCStore object __enter__().")
+        logger.debug("HDFStore object __enter__().")
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        logger.debug("MCStore object __exit__().")
+        logger.debug("HDFStore object __exit__().")
         self.close()
 
     def __getitem__(self, index):
@@ -507,7 +507,7 @@ class MCStore:
             A list of table names to link. By default all existing tables
             within 'path' will be linked.
         """
-        with MCStore(os.path.abspath(file_path), mode="r", path=path) as reader:
+        with HDFStore(os.path.abspath(file_path), mode="r", path=path) as reader:
             for node in reader.file.iter_nodes(self.path, classname='Table'):
                 if table_names is None or node.name in table_names:
                     self.file.create_external_link(
@@ -534,7 +534,7 @@ class MCStore:
 
     @staticmethod
     def open(file_path, mode='r', path="/", descr=None):
-        """ Create a new MCStore object and leave the file open for further
+        """ Create a new HDFStore object and leave the file open for further
         processing.
 
         Parameters
@@ -548,4 +548,4 @@ class MCStore:
         descr : str, optional
             A description for the dataset. Only used in writing mode.
         """
-        return MCStore(file_path, mode=mode, path=path, descr=descr)
+        return HDFStore(file_path, mode=mode, path=path, descr=descr)

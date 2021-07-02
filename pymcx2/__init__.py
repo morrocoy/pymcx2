@@ -13,7 +13,7 @@ from .mch_chunk import MCHFileChunk
 from .mch_store import MCHStore, load_mch
 from .mc2_store import MC2Store, load_mc2
 from .mc_session import MCSession, load_session
-from .mc_store import MCStore
+from .hdf_store import HDFStore
 
 if find_mcx() is None:
     print("Warning: Could not find path to mcx binary.")

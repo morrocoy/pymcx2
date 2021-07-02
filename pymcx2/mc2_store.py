@@ -119,14 +119,6 @@ class MC2Store(object):
         """ Return the entire data array. """
         return self.data
 
-    def as_dataframe(self):
-        """ Creates a dataframe from the data of the mc2 file.
-
-        TODO: add header to the dataframe
-        """
-        df = pd.DataFrame(self.data)
-        return df
-
     def close(self):
         """ Close the underlying mc2 file if it was opened."""
         if self.file is not None and self.owner:
