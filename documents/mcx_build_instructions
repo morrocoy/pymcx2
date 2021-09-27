@@ -1,0 +1,9 @@
+
+- git clone --recursive https://github.com/fangq/mcx.git
+- cd mcx
+- correct gpu architecture under "NVCC Options" in ./src/CMakeList.txt:
+    for 2080 Super: -arch=sm_75
+- cmake .
+- cmake --build . --config release -j8
+
+build tested under ubuntu 20.04

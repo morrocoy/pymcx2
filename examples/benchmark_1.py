@@ -51,6 +51,7 @@ session.set_source_type(type='pencil')
 session.add_detector(pos=[50, 50, 0], radius=50)  # optional detector
 
 session.set_output(type="E", normalize=True, mask="DSPMXVW")
+# session.set_output(type="E", normalize=True, mask="SPW")
 # session.dumpJSON()
 # session.dumpVolume()
 

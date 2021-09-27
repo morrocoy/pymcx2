@@ -532,6 +532,11 @@ class HDFStore:
         else:
             raise Exception("Index Error: {}.".format(index))
 
+    def set_attribute(self, name, value):
+        if self.mode in ("w", "wb", "a", "r+"):
+            node = self.mkdir(self.path)
+            self.file.set_node_attr(self.path, name, value)
+
     @staticmethod
     def open(file_path, mode='r', path="/", descr=None):
         """ Create a new HDFStore object and leave the file open for further

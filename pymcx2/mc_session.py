@@ -9,6 +9,7 @@ import sys
 import os.path
 import subprocess
 import re
+# import time
 from ast import literal_eval
 
 import numpy as np
@@ -146,7 +147,7 @@ class MCSession(object):
         #         if os.path.isfile(fp):
         #             os.remove(fp)
 
-    def add_detector(self, pos, radius):
+    def add_detector(self, pos, radius, enabled=True):
         """ Add a detector. The detector id is automatically chosen and
         returned.
 
@@ -168,6 +169,7 @@ class MCSession(object):
             'id': det_id,
             'pos': pos,
             'radius': radius,
+            'enabled': enabled,
         })
         return det_id
 
@@ -276,10 +278,38 @@ class MCSession(object):
                     'Pos': det['pos'],
                     'R': det['radius']
                 })
-                for det in self.detector.values()
+                for det in self.detector.values() if det['enabled']
             ]
 
         return json.dumps(cfg, sort_keys=False, indent=4)
+
+    def clear_files(self):
+        """ Remove all simulation files. """
+        for ext in ["json", "mch", "mc2", "mcv"]:
+            fp = os.path.join(self.workdir, "%s.%s" % (self.name, ext))
+            if os.path.isfile(fp):
+                os.remove(fp)
+
+    def clone(self, name):
+        """ Change the session name.
+
+        Parameters
+        ----------
+        name : str
+            The name of the session clone.
+
+        """
+        self.save()
+        cfg_file_path = os.path.join(self.workdir, self.name + ".json")
+        clone = load_session(cfg_file_path)
+        clone.rename(name, keep_old_files=True)
+
+        return clone
+
+    def disable_detector(self, det_id):
+        name = "det%d" % det_id
+        if name in self.detector.keys():
+            self.detector[name]['enabled'] = False
 
     def dump_json(self, file_name=None):
         """ Export the configurarion in json format.
@@ -316,12 +346,10 @@ class MCSession(object):
             vol = np.asarray(self.domain['vol'])
             file.write(vol.tobytes(order=order))
 
-    def clear_files(self):
-        """ Remove all simulation files. """
-        for ext in ["json", "mch", "mc2", "mcv"]:
-            fp = os.path.join(self.workdir, "%s.%s" % (self.name, ext))
-            if os.path.isfile(fp):
-                os.remove(fp)
+    def enable_detector(self, det_id):
+        name = "det%d" % det_id
+        if name in self.detector.keys():
+            self.detector[name]['enabled'] = True
 
     def load_json(self, file_path):
         """ Import the configuration from a json file.
@@ -432,6 +460,7 @@ class MCSession(object):
                     'id': i,
                     'pos': det.get("Pos", [25, 30, 0]),
                     'radius': det.get("R", 1),
+                    'enabled': True,
                 })
                 logger.debug("Load settings for detector {}: {}.".format(
                     i, self.detector[name]))
@@ -471,27 +500,32 @@ class MCSession(object):
         logger.debug(
             "Load output settings: {}.".format(self.output))
 
-    def load_results(self):
+    def load_results(self, session_name=None):
         """ Explicit load of simulation results from the working directory. """
 
         # retrieve results for fluence field
-        file_path = os.path.join(self.workdir, self.name + ".mc2")
+        if session_name is None:
+            session_name = self.name
+
+        file_path = os.path.join(self.workdir, session_name + ".mc2")
         if os.path.isfile(file_path):
             shape = self.domain['shape'] + (self.forward['ntime'], )
             logger.debug("Reading file {} with shape {}.".format(
                 file_path, shape))
             store = load_mc2(file_path, shape)
             self.fluence = store.as_array()  # four-dimensional array
+
         else:
             logger.debug("File {} not found.".format(file_path))
             self.fluence = None
 
         # retrieve results for detected photons
-        file_path = os.path.join(self.workdir, self.name + ".mch")
+        file_path = os.path.join(self.workdir, session_name + ".mch")
         if os.path.isfile(file_path):
             logger.debug("Reading file {}.".format(file_path))
             store = load_mch(file_path)
             self.detected_photons = store.as_dataframe()  # pandas dataframe
+
         else:
             logger.debug("File {} not found.".format(file_path))
             self.detected_photons = None
@@ -578,6 +612,22 @@ class MCSession(object):
             return literal_eval(match[0])
         else:
             return None
+
+    def rename(self, name, keep_old_files=False):
+        """ Change the session name.
+
+        Parameters
+        ----------
+        name : str
+            The new name of the session.
+        keep_old_files : bool
+            A flag to keep or remove files with old name
+
+        """
+        if not keep_old_files:
+            self.clear_files()
+        self.name = name
+        self.dump_volume()
 
     def run(self, thread="auto", **flags):
         """ Execute the simulation with optional flags.
@@ -666,7 +716,28 @@ class MCSession(object):
         self.parse_stats(output)
 
         # retrieve results for fluence field and detected photons
-        self.load_results()
+        if 's' in flags:
+            session_name = flags['s']
+        elif "session" in flags:
+            session_name = flags['session']
+        else:
+            session_name = self.name
+
+        # time.sleep(1)
+        # self.load_results(session_name)
+
+        # remove temporary alias output files
+        # if session_name != self.name:
+        #     for ext in ["mch", "mc2"]:
+        #         fp = os.path.join(self.workdir, "%s.%s" % (session_name, ext))
+        #         if os.path.isfile(fp):
+        #             os.remove(fp)
+
+
+    def save(self):
+        """ Save configuration and volume file. """
+        self.dump_json()
+        self.dump_volume()
 
     def set_boundary(self, specular=True, mismatch=True,
                      bc="______000000", n0=1):
@@ -705,7 +776,7 @@ class MCSession(object):
         self.boundary['bc'] = bc
         self.boundary['n0'] = n0
 
-    def set_detector(self, det_id, pos, radius):
+    def set_detector(self, det_id, pos, radius, enabled=True):
         """ Set or modifies the configuration of a detector.
 
         Parameters
@@ -721,6 +792,7 @@ class MCSession(object):
         if name in self.detector.keys():
             self.detector[name]['pos'] = pos
             self.detector[name]['radius'] = radius
+            self.detector[name]['enabled'] = enabled
 
     def set_domain(self, vol, origin_type=0, scale=1):
         """ Set the domain.
