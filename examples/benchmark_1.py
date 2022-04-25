@@ -46,7 +46,7 @@ session.add_material(mua=1, mus=9, g=0.75, n=1)  # receives tag 1
 session.add_material(mua=0, mus=0, g=1, n=1)  # receives tag 2
 
 session.set_boundary(specular=True, mismatch=True, n0=1)
-session.set_source(nphoton=500000, pos=[100, 100, 0], dir=[0, 0, 1])
+session.set_source(nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1])
 session.set_source_type(type='pencil')
 session.add_detector(pos=[50, 50, 0], radius=50)  # optional detector
 
@@ -58,6 +58,7 @@ session.set_output(type="E", normalize=True, mask="DSPMXVW")
 session.run(thread='auto', debug='P')  # blocksize=64
 
 # post processing .........................................................
+session.load_results()
 data = session.fluence[..., 0]  # last index refers to time step
 
 n0 = 1.0  # refractive index of surrounding
@@ -92,6 +93,9 @@ for mat in session.material.values():
             -mat["mua"] * scale * dp["ppathlen_mat%d" % (mat["tag"])]), axis=1)
 
 # plot slice of fluence data ..............................................
+
+data = session.fluence[..., 0]  # last index refers to time step
+
 data_slice = data[:, :, 0]
 data_slice = np.log10(np.abs(data_slice))
 

@@ -29,7 +29,98 @@ logger = logmanager.getLogger(__name__)
 
 
 class MCSession(object):
-    """ Represents a mcx simulation session.
+    """ A class used to a mcx simulation session.
+
+    Objects of this class may be used to configure and run a Monte Carlo
+    simulation using MCX. The configuration succeeds via an automatically
+    generated json file being transferred to MCX.
+
+    Attributes
+    ----------
+    name : str
+        The session name or id used as default name for the output files.
+    workdir : str or pathlib.Path,
+        The path to the working directory.
+    seed : int
+        The seed of the CPU random number generator (RNG). A value of -1
+        let MCX to automatically seed the CPU-RNG using system clock. A
+        value n > 0 sets the CPU-RNG's seed to n.
+    autoload : bool, optional
+        Enable automatic loading of the session parameters if the files are
+        already available in the working directory.
+    boundary :  dict('specular': bool, 'mismatch': bool, 'n0': float, 'bc': str)
+        A dictionary which defines the boundary settings.
+    domain :  dict('vol': numpy.ndarray, 'shape': tuple, 'origin': int, 'scale': float)
+        A dictionary which defines the domain settings.
+    forward :  dict('t0': float, 't1': float, 'dt': float, 'ntime': int)
+        A dictionary which defines the time domain settings.
+    material :  dict(dict('tag': float, 'mua': float, 'mus': float, 'g': float, 'n': float))
+        A dictionary which defines the material properties.
+    output :  dict('type': str, 'normalize': bool, 'mask': str, 'format': str)
+        A dictionary which defines the output settings.
+    source :  dict('nphoton': int, 'pos': np.ndarray, 'dir': np.ndarray, 'type': str, 'param1': np.ndarray, 'param2': np.ndarray, 'pattern': np.ndarray)
+        A dictionary which defines the source settings.
+    fluence : numpy.ndarray
+        The four-dimensional numpy array containing fluence data (nx, ny, nz, ntime).
+    detected_photons :  pandas.dataframe
+        A dataframe containing the information of detected photons.
+    stat :  dict('nphoton': int, 'nthread': int, 'runtime': float, 'energytot': float, 'energyabs': float)
+        A dictionary which stores the resulting simulation statistics.
+
+    Configure and run a simulation for a two-layer model using point-like source.
+
+    .. code-block:: python
+       :emphasize-lines: 4
+
+        import numpy as np
+        from pymcx2 import MCSession
+
+        # create a MCX session
+        session = MCSession("test_session, workdir=".", seed=29012392)
+
+        # define geometry
+        vol = np.ones((200, 200, 11))
+        vol[..., 0] = 0  # pad a layer of zeros to get diffuse reflectance
+        session.set_domain(vol, origin_type=1, scale=0.02)
+
+        # define materials (background material is predefined with tag 0,
+        # mua=0, mus=0, g=1, n=1
+        session.add_material(mua=1, mus=9, g=0.75, n=1)  # receives tag 1
+        session.add_material(mua=0, mus=0, g=1, n=1)  # receives tag 2
+
+        # set boundary conditions
+        session.set_boundary(specular=True, mismatch=True, n0=1)
+        session.set_source(nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1])
+        session.set_source_type(type='pencil')
+
+        # set output format
+        session.set_output(type="E", normalize=True, mask="DSPMXVW")
+
+        # run simulation
+        session.run(thread='auto', debug='P')
+
+    Retrieve and post process fluence data.
+
+    .. code-block:: python
+       :emphasize-lines: 4
+
+        # retrieve results
+        session.load_results()
+
+        # plot energy deposit in the first slice
+        data = session.fluence[..., 0]  # last index refers to time step
+
+        slice = np.log10(np.abs(data[:, :, 0]))
+        pos = plt.imshow(slice)
+        plt.show()
+
+    Retrieve simulation statistics.
+
+    .. code-block:: python
+       :emphasize-lines: 4
+
+        for key, value in session.stat.items():
+            print("{}: {}".format(key, value))
 
     """
 

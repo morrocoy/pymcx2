@@ -64,6 +64,7 @@ session.dump_volume()
 session.run(thread='auto', debug='P')
 
 # post processing .........................................................
+session.load_results()
 data = session.fluence[..., 0]  # last index refers to time step
 
 n0 = 1.0  # refractive index of surrounding

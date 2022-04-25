@@ -141,6 +141,7 @@ for i in range(n):
     # session.run(thread='auto', debug=0)
 
     # post processing
+    session.load_results()
     if session.fluence is None:
         raise RuntimeError("No fluence data found.")
 
@@ -173,4 +174,4 @@ df = pd.DataFrame(
     data, columns=["wavelen", "specular", "diffuse", "absorbed", "transmitted"])
 
 print(df)
-df.to_excel(os.path.join(data_path, "output.xls"))
+# df.to_excel(os.path.join(data_path, "output.xls"))

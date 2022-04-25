@@ -471,6 +471,22 @@ class HDFStore:
 
         return False
 
+    def cd(self, path):
+        """ Change the current directory within the hdf5 file.
+
+        Parameters
+        ----------
+        path : str
+            The absolute directory path within the file.
+        """
+        if self.file.__contains__(path):
+            self.clear()
+            self.path = path
+            logger.debug(f"Change directory within h5 file: {path}.")
+
+        else:
+            logger.debug(f"Directory not found within h5 file: {path}.")
+
     def mkdir(self, path, createparents=True):
         """ Create a directory within the hdf5 file.
 

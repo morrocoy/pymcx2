@@ -3,8 +3,6 @@
 PyMCX2 is a cross-platform python interface package for [Monte Carlo eXtreme (MCX) - 
 CUDA Edition](https://github.com/fangq/mcx).
 
-TODO
-
 
 ## Requirements
 
@@ -17,9 +15,6 @@ This project supports the following versions of python:
     
 It has been tested on Ubuntu 20.04 and Windows 10.
      
-## Installation
-
-TODO 
 
 ## Link to MCX
 When importing the package pymcx2 it searches in `sys.path` for the mxc binary. 
@@ -33,15 +28,74 @@ Warning: Could not find path to mcx binary.
 ```
 
 ## Running Simulations
-TODO
+
+Objects of the class MCSession allow to configure and run Monte Carlo
+simulations using MCX. The configuration succeeds via an automatically
+generated json file being transferred to MCX. The following examples illustrate
+the use of the session interface.
+    
+Configure and run a simulation for a two-layer model using point-like source.
+
+```
+import numpy as np
+from pymcx2 import MCSession
+
+# create a MCX session
+session = MCSession("test_session", workdir=".", seed=29012392)
+
+# define geometry
+vol = np.ones((200, 200, 11))
+vol[..., 0] = 0  # pad a layer of zeros to get diffuse reflectance
+session.set_domain(vol, origin_type=1, scale=0.02)
+
+# define materials (background material is predefined with tag 0,
+# mua=0, mus=0, g=1, n=1
+session.add_material(mua=1, mus=9, g=0.75, n=1)  # receives tag 1
+session.add_material(mua=0, mus=0, g=1, n=1)  # receives tag 2
+
+# set boundary conditions
+session.set_boundary(specular=True, mismatch=True, n0=1)
+session.set_source(nphoton=5e5, pos=[100, 100, 0], dir=[0, 0, 1])
+session.set_source_type(type='pencil')
+
+# set output format
+session.set_output(type="E", normalize=True, mask="DSPMXVW")
+
+# run simulation
+session.run(thread='auto', debug='P')
+```
+
+Retrieve and post process fluence data.
+
+```
+import matplotlib.pyplot as plt
+
+session.load_results()
+data = session.fluence[..., 0]  # last index refers to time step
+slice = np.log10(np.abs(data[:, :, 0]))
+pos = plt.imshow(slice)
+plt.show()
+```
+
+Retrieve simulation statistics.
+
+```
+for key, value in session.stat.items():
+    print("{}: {}".format(key, value))
+```
 
 ## Detected Photons
-
-The simulation results of all detected photons are available from a pandas 
+ 
+Before running the simulation one or more detectors must be defined according to:
+```
+session.add_detector(pos=[50, 50, 0], radius=50)  
+```
+The simulation results of all detected photons are then available from a pandas 
 dataframe via the member `detected_photons` of the session:
 ```
+session.load_results()
 dp = session.detected_photons
-```  
+```
 Apart from the index, the dataframe generally provides the following fields with 
 the corresponding number of columns in brackets: 
 * `detectid` - The detector ID (1).
