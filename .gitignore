@@ -8,12 +8,17 @@ __pycache__/
 #*.dll
 #*.lib
 
+# developement
+data/
+model/
+pictures/
+experimental/
+scripts/
+doc/mcx/
+
 # distribution / packaging
 bin/
 build/
-data/
-deprecated/
-pictures/
 *.egg-info/
 *.egg
 .installed.cfg

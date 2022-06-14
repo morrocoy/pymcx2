@@ -114,7 +114,7 @@ class HDFStore:
     Process a dataset by reading an existing and writing a new table.
 
     .. code-block:: python
-        :emphasize-lines: 24,25,26
+        :emphasize-lines: 25,26,27
 
         import numpy as np
         import tables

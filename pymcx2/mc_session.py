@@ -67,10 +67,12 @@ class MCSession(object):
     stat :  dict('nphoton': int, 'nthread': int, 'runtime': float, 'energytot': float, 'energyabs': float)
         A dictionary which stores the resulting simulation statistics.
 
+    Examples
+    --------
     Configure and run a simulation for a two-layer model using point-like source.
 
     .. code-block:: python
-       :emphasize-lines: 4
+       :emphasize-lines: 5
 
         import numpy as np
         from pymcx2 import MCSession
@@ -102,7 +104,6 @@ class MCSession(object):
     Retrieve and post process fluence data.
 
     .. code-block:: python
-       :emphasize-lines: 4
 
         # retrieve results
         session.load_results()
@@ -117,7 +118,6 @@ class MCSession(object):
     Retrieve simulation statistics.
 
     .. code-block:: python
-       :emphasize-lines: 4
 
         for key, value in session.stat.items():
             print("{}: {}".format(key, value))
