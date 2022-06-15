@@ -14,7 +14,7 @@ model/
 pictures/
 experimental/
 scripts/
-doc/mcx/
+docs/mcx/
 
 # distribution / packaging
 bin/
@@ -27,6 +27,6 @@ build/
 .idea/
 
 # Sphinx documentation
-doc/build/
+docs/build/
 
 

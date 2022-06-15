@@ -12,22 +12,26 @@ This project supports the following versions of python:
   * `numpy`
 * Optional packages:
   * `pandas` for detected photons
-    
+  * `pytables` for HDF5 file support
+  
 It has been tested on Ubuntu 20.04 and Windows 10.
      
 
-## Link to MCX
+## Installation
+
+To install the packages, copy the folder ``pymcx2`` into the project folder or
+site-package directory of the current python environment.
 When importing the package pymcx2 it searches in `sys.path` for the mxc binary. 
-Internally the function `find_mcx()` is called which returns on success the path 
+Internally the function ``find_mcx()`` is called which returns on success the path 
 to the binary. Thus, make sure that either the root or bin
-path of MCX is within `sys.path` before importing the package.
+path of MCX is within ``sys.path`` before importing the package.
 Otherwise the following warning will pop up during the import: 
 ```
 >>> import pymcx2
 Warning: Could not find path to mcx binary.
 ```
 
-## Running Simulations
+## Usage
 
 Objects of the class MCSession allow to configure and run Monte Carlo
 simulations using MCX. The configuration succeeds via an automatically
@@ -140,3 +144,12 @@ excluded here.
 - [Monte Carlo eXtreme (MCX) - CUDA Edition](https://github.com/fangq/mcx).
 - [Command line options for MCX](http://mcx.space/wiki/index.cgi?Doc/mcx_help#Command_Line_Options).
 - [PyMCX - a function based python interface package for MCX](https://github.com/4D42/pymcx).
+
+
+## License
+
+PyMCX2 is distributed under the terms of the MIT License.
+
+SPDX-License-Identifier: MIT License
+
+Copyright (C) 2021 by Kai Papke https://github.com/morrocoy

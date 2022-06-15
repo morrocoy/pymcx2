@@ -60,7 +60,7 @@ class HDFStore:
     Create a dataset using a structured numpy array
 
     .. code-block:: python
-        :emphasize-lines: 19
+        :emphasize-lines: 20
 
         import numpy as np
         import tables
